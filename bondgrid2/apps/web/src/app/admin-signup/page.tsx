@@ -3,6 +3,7 @@
 import { FormEvent, ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import PasswordInput from '../../components/form/PasswordInput';
 import { adminSignup, AdminSignupInput } from '../../services/auth.api';
 
 type OrganizationType = AdminSignupInput['organization']['organizationType'];
@@ -198,9 +199,8 @@ export default function AdminSignupPage() {
               </Field>
 
               <Field label="Password">
-                <input
+                <PasswordInput
                   className="input"
-                  type="password"
                   value={form.password}
                   onChange={(event) =>
                     setForm({ ...form, password: event.target.value })
@@ -210,9 +210,8 @@ export default function AdminSignupPage() {
               </Field>
 
               <Field label="Confirm Password">
-                <input
+                <PasswordInput
                   className="input"
-                  type="password"
                   value={form.confirmPassword}
                   onChange={(event) =>
                     setForm({

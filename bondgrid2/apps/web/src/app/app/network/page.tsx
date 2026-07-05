@@ -14,6 +14,7 @@ import Sidebar from '../../../components/layout/Sidebar';
 import GraphCanvas from '../../../components/layout/GraphCanvas';
 import PersonDrawer from '../../../components/layout/PersonDrawer';
 import AvatarUpload from '../../../components/form/AvatarUpload';
+import PasswordInput from '../../../components/form/PasswordInput';
 import {
   getCurrentUser,
   logout as logoutSession,
@@ -505,9 +506,8 @@ export default function NetworkPage() {
 
                   <Field label="Temporary Password">
                     <div className="flex gap-2">
-                      <input
+                      <PasswordInput
                         className="input"
-                        type="password"
                         value={form.temporaryPassword}
                         onChange={(event) =>
                           setForm({
@@ -535,9 +535,8 @@ export default function NetworkPage() {
                   </Field>
 
                   <Field label="Confirm Password">
-                    <input
+                    <PasswordInput
                       className="input"
-                      type="password"
                       value={form.confirmTemporaryPassword}
                       onChange={(event) =>
                         setForm({

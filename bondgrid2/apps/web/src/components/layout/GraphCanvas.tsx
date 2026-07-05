@@ -43,8 +43,14 @@ interface ViewBox {
   scale: number;
 }
 
+interface CanvasSize {
+  width: number;
+  height: number;
+}
+
 const NODE_RADIUS = 34;
 const EDGE_LABEL_OFFSET = 10;
+const TOP_CHROME_OFFSET = 56;
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 2.4;
 const GRAPH_COLORS = [
@@ -189,6 +195,68 @@ function runLayout(
   }));
 }
 
+function getNodeBounds(nodes: GraphNode[]) {
+  const xs = nodes.map((node) => node.x);
+  const ys = nodes.map((node) => node.y);
+
+  return {
+    minX: Math.min(...xs) - NODE_RADIUS - 96,
+    maxX: Math.max(...xs) + NODE_RADIUS + 96,
+    minY: Math.min(...ys) - NODE_RADIUS - 96,
+    maxY: Math.max(...ys) + NODE_RADIUS + 118,
+  };
+}
+
+function getFitView(nodes: GraphNode[], canvasSize: CanvasSize): ViewBox {
+  if (nodes.length === 0 || canvasSize.width === 0 || canvasSize.height === 0) {
+    return { x: 0, y: 0, scale: 1 };
+  }
+
+  const bounds = getNodeBounds(nodes);
+  const graphWidth = Math.max(bounds.maxX - bounds.minX, 220);
+  const graphHeight = Math.max(bounds.maxY - bounds.minY, 200);
+  const availableWidth = Math.max(canvasSize.width, 1);
+  const availableHeight = Math.max(canvasSize.height - TOP_CHROME_OFFSET, 1);
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const fitScale = Math.min(
+    availableWidth / graphWidth,
+    availableHeight / graphHeight,
+  );
+  const maxReadableScale = nodes.length <= 3 ? 1.25 : 1.05;
+  const scale = clamp(fitScale * 0.9, MIN_ZOOM, maxReadableScale);
+
+  return {
+    x: -centerX * scale,
+    y: -centerY * scale + TOP_CHROME_OFFSET / 2,
+    scale,
+  };
+}
+
+function isGraphClipped(
+  nodes: GraphNode[],
+  view: ViewBox,
+  canvasSize: CanvasSize,
+): boolean {
+  if (nodes.length === 0 || canvasSize.width === 0 || canvasSize.height === 0) {
+    return false;
+  }
+
+  const bounds = getNodeBounds(nodes);
+  const screenMinX = canvasSize.width / 2 + view.x + bounds.minX * view.scale;
+  const screenMaxX = canvasSize.width / 2 + view.x + bounds.maxX * view.scale;
+  const screenMinY = canvasSize.height / 2 + view.y + bounds.minY * view.scale;
+  const screenMaxY = canvasSize.height / 2 + view.y + bounds.maxY * view.scale;
+  const tolerance = 24;
+
+  return (
+    screenMinX < -tolerance ||
+    screenMaxX > canvasSize.width + tolerance ||
+    screenMinY < TOP_CHROME_OFFSET - tolerance ||
+    screenMaxY > canvasSize.height + tolerance
+  );
+}
+
 export default function GraphCanvas({
   people,
   selectedPersonId,
@@ -204,6 +272,8 @@ export default function GraphCanvas({
   const panRef = useRef<{ x: number; y: number; view: ViewBox } | undefined>(
     undefined,
   );
+  const autoFitSignatureRef = useRef<string | undefined>(undefined);
+  const previousCanvasSizeRef = useRef<CanvasSize>({ width: 0, height: 0 });
   const relationshipsKey = useMemo(
     () =>
       relationships
@@ -215,6 +285,14 @@ export default function GraphCanvas({
         .join('|'),
     [relationships],
   );
+  const graphSignature = useMemo(() => {
+    const peopleKey = people
+      .map((person) => person.id)
+      .sort()
+      .join('|');
+
+    return `${peopleKey}::${relationshipsKey}`;
+  }, [people, relationshipsKey]);
   const [nodes, setNodes] = useState<GraphNode[]>(() =>
     runLayout(createInitialNodes(people), relationships),
   );
@@ -241,37 +319,7 @@ export default function GraphCanvas({
   }, [hoveredNodeId, nodes, selectedPersonId]);
 
   const fitGraph = useCallback(() => {
-    if (nodes.length === 0) {
-      setView({ x: 0, y: 0, scale: 1 });
-      return;
-    }
-
-    const xs = nodes.map((node) => node.x);
-    const ys = nodes.map((node) => node.y);
-    const minX = Math.min(...xs) - 120;
-    const maxX = Math.max(...xs) + 120;
-    const minY = Math.min(...ys) - 120;
-    const maxY = Math.max(...ys) + 120;
-    const graphWidth = Math.max(maxX - minX, 260);
-    const graphHeight = Math.max(maxY - minY, 220);
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-    const scale = Math.min(
-      1.5,
-      Math.max(
-        MIN_ZOOM,
-        Math.min(
-          canvasSize.width / graphWidth,
-          Math.max(1, canvasSize.height - 56) / graphHeight,
-        ) * 0.88,
-      ),
-    );
-
-    setView({
-      x: -centerX * scale,
-      y: -centerY * scale + 28,
-      scale,
-    });
+    setView(getFitView(nodes, canvasSize));
   }, [canvasSize.height, canvasSize.width, nodes]);
 
   useEffect(() => {
@@ -289,6 +337,7 @@ export default function GraphCanvas({
       const addedNodes = people.some((person) => !currentById.has(person.id));
 
       if (current.length === 0 || addedNodes) {
+        autoFitSignatureRef.current = undefined;
         return runLayout(nextNodes, relationships);
       }
 
@@ -300,6 +349,7 @@ export default function GraphCanvas({
     setNodes((current) =>
       current.length > 0 ? runLayout(current, relationships) : current,
     );
+    autoFitSignatureRef.current = undefined;
   }, [relationshipsKey, relationships]);
 
   useEffect(() => {
@@ -311,7 +361,20 @@ export default function GraphCanvas({
 
     const updateSize = () => {
       const rect = svg.getBoundingClientRect();
-      setCanvasSize({ width: rect.width, height: rect.height });
+      const nextSize = { width: rect.width, height: rect.height };
+      const previousSize = previousCanvasSizeRef.current;
+      previousCanvasSizeRef.current = nextSize;
+
+      setCanvasSize(nextSize);
+
+      if (
+        previousSize.width > 0 &&
+        previousSize.height > 0 &&
+        nodes.length > 0 &&
+        isGraphClipped(nodes, view, nextSize)
+      ) {
+        setView(getFitView(nodes, nextSize));
+      }
     };
 
     updateSize();
@@ -319,7 +382,21 @@ export default function GraphCanvas({
     observer.observe(svg);
 
     return () => observer.disconnect();
-  }, []);
+  }, [nodes, view]);
+
+  useEffect(() => {
+    if (
+      nodes.length === 0 ||
+      canvasSize.width === 0 ||
+      canvasSize.height === 0 ||
+      autoFitSignatureRef.current === graphSignature
+    ) {
+      return;
+    }
+
+    setView(getFitView(nodes, canvasSize));
+    autoFitSignatureRef.current = graphSignature;
+  }, [canvasSize, graphSignature, nodes]);
 
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
     const pan = panRef.current;

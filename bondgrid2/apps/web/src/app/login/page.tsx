@@ -3,6 +3,7 @@
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import PasswordInput from '../../components/form/PasswordInput';
 import { login } from '../../services/auth.api';
 
 export default function LoginPage() {
@@ -55,9 +56,8 @@ export default function LoginPage() {
 
         <label className="mt-4 block text-sm text-slate-300">
           <span className="mb-2 block text-slate-400">Password</span>
-          <input
+          <PasswordInput
             className="input"
-            type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required
