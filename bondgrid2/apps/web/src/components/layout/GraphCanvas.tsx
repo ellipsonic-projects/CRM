@@ -37,6 +37,11 @@ interface GraphNode {
   y: number;
 }
 
+interface GraphPoint {
+  x: number;
+  y: number;
+}
+
 interface ViewBox {
   x: number;
   y: number;
@@ -47,6 +52,30 @@ interface CanvasSize {
   width: number;
   height: number;
 }
+
+type DragState =
+  | {
+      type: 'pan';
+      pointerId: number;
+      x: number;
+      y: number;
+      view: ViewBox;
+    }
+  | {
+      type: 'node';
+      pointerId: number;
+      personId: string;
+      offset: GraphPoint;
+      moved: boolean;
+    }
+  | {
+      type: 'relationship';
+      pointerId: number;
+      relationshipId: string;
+      startClient: GraphPoint;
+      startOffset: GraphPoint;
+      moved: boolean;
+    };
 
 const NODE_RADIUS = 34;
 const EDGE_LABEL_OFFSET = 10;
@@ -65,6 +94,7 @@ const GRAPH_COLORS = [
   '#eab308',
 ];
 const EMPTY_RELATIONSHIPS: GraphRelationship[] = [];
+const EMPTY_LABEL_OFFSETS: Record<string, GraphPoint> = {};
 
 function hashString(value: string): number {
   return value.split('').reduce((hash, char) => {
@@ -269,9 +299,8 @@ export default function GraphCanvas({
 }: GraphCanvasProps) {
   const relationships = relationshipsProp ?? EMPTY_RELATIONSHIPS;
   const svgRef = useRef<SVGSVGElement>(null);
-  const panRef = useRef<{ x: number; y: number; view: ViewBox } | undefined>(
-    undefined,
-  );
+  const dragRef = useRef<DragState | undefined>(undefined);
+  const suppressClickRef = useRef(false);
   const autoFitSignatureRef = useRef<string | undefined>(undefined);
   const previousCanvasSizeRef = useRef<CanvasSize>({ width: 0, height: 0 });
   const relationshipsKey = useMemo(
@@ -300,6 +329,9 @@ export default function GraphCanvas({
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [hoveredNodeId, setHoveredNodeId] = useState<string>();
   const [hoveredRelationshipId, setHoveredRelationshipId] = useState<string>();
+  const [draggingNodeId, setDraggingNodeId] = useState<string>();
+  const [relationshipLabelOffsets, setRelationshipLabelOffsets] =
+    useState<Record<string, GraphPoint>>(EMPTY_LABEL_OFFSETS);
 
   const nodeById = useMemo(() => {
     return new Map(nodes.map((node) => [node.person.id, node]));
@@ -309,14 +341,16 @@ export default function GraphCanvas({
     return [...nodes].sort((first, second) => {
       const firstActive =
         first.person.id === selectedPersonId ||
-        first.person.id === hoveredNodeId;
+        first.person.id === hoveredNodeId ||
+        first.person.id === draggingNodeId;
       const secondActive =
         second.person.id === selectedPersonId ||
-        second.person.id === hoveredNodeId;
+        second.person.id === hoveredNodeId ||
+        second.person.id === draggingNodeId;
 
       return Number(firstActive) - Number(secondActive);
     });
-  }, [hoveredNodeId, nodes, selectedPersonId]);
+  }, [draggingNodeId, hoveredNodeId, nodes, selectedPersonId]);
 
   const fitGraph = useCallback(() => {
     setView(getFitView(nodes, canvasSize));
@@ -351,6 +385,23 @@ export default function GraphCanvas({
     );
     autoFitSignatureRef.current = undefined;
   }, [relationshipsKey, relationships]);
+
+  useEffect(() => {
+    setRelationshipLabelOffsets((current) => {
+      const relationshipIds = new Set(
+        relationships.map((relationship) => relationship.id),
+      );
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([relationshipId]) =>
+          relationshipIds.has(relationshipId),
+        ),
+      );
+
+      return Object.keys(next).length === Object.keys(current).length
+        ? current
+        : next;
+    });
+  }, [relationships]);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -398,20 +449,106 @@ export default function GraphCanvas({
     autoFitSignatureRef.current = graphSignature;
   }, [canvasSize, graphSignature, nodes]);
 
-  const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
-    const pan = panRef.current;
+  const toGraphPoint = useCallback(
+    (clientX: number, clientY: number): GraphPoint => {
+      const rect = svgRef.current?.getBoundingClientRect();
 
-    if (pan) {
-      setView({
-        ...pan.view,
-        x: pan.view.x + event.clientX - pan.x,
-        y: pan.view.y + event.clientY - pan.y,
-      });
+      if (!rect) {
+        return { x: 0, y: 0 };
+      }
+
+      const cursorX = clientX - rect.left;
+      const cursorY = clientY - rect.top;
+
+      return {
+        x: (cursorX - canvasSize.width / 2 - view.x) / view.scale,
+        y: (cursorY - canvasSize.height / 2 - view.y) / view.scale,
+      };
+    },
+    [canvasSize.height, canvasSize.width, view.scale, view.x, view.y],
+  );
+
+  const capturePointer = (pointerId: number) => {
+    if (!svgRef.current?.hasPointerCapture(pointerId)) {
+      svgRef.current?.setPointerCapture(pointerId);
     }
   };
 
-  const handlePointerUp = () => {
-    panRef.current = undefined;
+  const releasePointer = (pointerId: number) => {
+    if (svgRef.current?.hasPointerCapture(pointerId)) {
+      svgRef.current.releasePointerCapture(pointerId);
+    }
+  };
+
+  const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    const drag = dragRef.current;
+
+    if (!drag) {
+      return;
+    }
+
+    if (drag.type === 'pan') {
+      setView({
+        ...drag.view,
+        x: drag.view.x + event.clientX - drag.x,
+        y: drag.view.y + event.clientY - drag.y,
+      });
+      return;
+    }
+
+    if (drag.type === 'node') {
+      const nextPoint = toGraphPoint(event.clientX, event.clientY);
+      const nextX = nextPoint.x + drag.offset.x;
+      const nextY = nextPoint.y + drag.offset.y;
+
+      dragRef.current = { ...drag, moved: true };
+      suppressClickRef.current = true;
+      setNodes((current) =>
+        current.map((node) =>
+          node.person.id === drag.personId
+            ? { ...node, x: nextX, y: nextY }
+            : node,
+        ),
+      );
+      return;
+    }
+
+    if (drag.type === 'relationship') {
+      const deltaX = (event.clientX - drag.startClient.x) / view.scale;
+      const deltaY = (event.clientY - drag.startClient.y) / view.scale;
+
+      dragRef.current = { ...drag, moved: true };
+      suppressClickRef.current = true;
+      setRelationshipLabelOffsets((current) => ({
+        ...current,
+        [drag.relationshipId]: {
+          x: drag.startOffset.x + deltaX,
+          y: drag.startOffset.y + deltaY,
+        },
+      }));
+    }
+  };
+
+  const handlePointerUp = (event: PointerEvent<SVGSVGElement>) => {
+    const drag = dragRef.current;
+
+    if (drag) {
+      releasePointer(drag.pointerId);
+    }
+
+    if (drag?.type === 'node') {
+      setDraggingNodeId(undefined);
+    }
+
+    if (drag?.type === 'relationship') {
+      setHoveredRelationshipId(drag.relationshipId);
+    }
+
+    dragRef.current = undefined;
+
+    if (drag?.type !== 'pan' && drag?.moved) {
+      event.preventDefault();
+    }
   };
 
   const handleWheel = (event: WheelEvent<SVGSVGElement>) => {
@@ -440,10 +577,55 @@ export default function GraphCanvas({
   };
 
   const startPan = (event: PointerEvent<SVGElement>) => {
-    panRef.current = {
+    capturePointer(event.pointerId);
+    dragRef.current = {
+      type: 'pan',
+      pointerId: event.pointerId,
       x: event.clientX,
       y: event.clientY,
       view,
+    };
+  };
+
+  const startNodeDrag = (event: PointerEvent<SVGGElement>, node: GraphNode) => {
+    event.stopPropagation();
+    const graphPoint = toGraphPoint(event.clientX, event.clientY);
+
+    capturePointer(event.pointerId);
+    setDraggingNodeId(node.person.id);
+    dragRef.current = {
+      type: 'node',
+      pointerId: event.pointerId,
+      personId: node.person.id,
+      offset: {
+        x: node.x - graphPoint.x,
+        y: node.y - graphPoint.y,
+      },
+      moved: false,
+    };
+  };
+
+  const startRelationshipDrag = (
+    event: PointerEvent<SVGGElement>,
+    relationshipId: string,
+  ) => {
+    event.stopPropagation();
+    const startOffset = relationshipLabelOffsets[relationshipId] ?? {
+      x: 0,
+      y: 0,
+    };
+
+    capturePointer(event.pointerId);
+    dragRef.current = {
+      type: 'relationship',
+      pointerId: event.pointerId,
+      relationshipId,
+      startClient: {
+        x: event.clientX,
+        y: event.clientY,
+      },
+      startOffset,
+      moved: false,
     };
   };
 
@@ -452,7 +634,22 @@ export default function GraphCanvas({
     relationshipId: string,
   ) => {
     event.stopPropagation();
+
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+
     setHoveredRelationshipId(relationshipId);
+  };
+
+  const handleNodeClick = (person: Person) => {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+
+    onSelectPerson(person);
   };
 
   return (
@@ -570,13 +767,23 @@ export default function GraphCanvas({
               const unitY = dy / distance;
               const normalX = -unitY;
               const normalY = unitX;
-              const curveOffset = ((index % 3) - 1) * 16;
+              const labelOffset = relationshipLabelOffsets[relationship.id] ?? {
+                x: 0,
+                y: 0,
+              };
+              const curveOffset = ((index % 3) - 1) * 16 + labelOffset.x;
               const startX = source.x + unitX * NODE_RADIUS;
               const startY = source.y + unitY * NODE_RADIUS;
               const endX = target.x - unitX * (NODE_RADIUS + 8);
               const endY = target.y - unitY * (NODE_RADIUS + 8);
-              const controlX = (startX + endX) / 2 + normalX * curveOffset;
-              const controlY = (startY + endY) / 2 + normalY * curveOffset;
+              const controlX =
+                (startX + endX) / 2 +
+                normalX * curveOffset +
+                labelOffset.y * unitX;
+              const controlY =
+                (startY + endY) / 2 +
+                normalY * curveOffset +
+                labelOffset.y * unitY;
               const labelX = controlX + normalX * EDGE_LABEL_OFFSET;
               const labelY = controlY + normalY * EDGE_LABEL_OFFSET - 8;
               const isActive =
@@ -587,8 +794,10 @@ export default function GraphCanvas({
               return (
                 <g
                   key={relationship.id}
-                  className="cursor-pointer"
-                  onPointerDown={(event) => event.stopPropagation()}
+                  className="cursor-move"
+                  onPointerDown={(event) =>
+                    startRelationshipDrag(event, relationship.id)
+                  }
                   onClick={(event) => handleEdgeClick(event, relationship.id)}
                   onMouseEnter={() => setHoveredRelationshipId(relationship.id)}
                   onMouseLeave={() => setHoveredRelationshipId(undefined)}
@@ -629,11 +838,11 @@ export default function GraphCanvas({
               return (
                 <g
                   key={node.person.id}
-                  className="cursor-pointer outline-none"
+                  className="cursor-move outline-none"
                   transform={`translate(${node.x} ${node.y}) scale(${activeScale})`}
                   tabIndex={0}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={() => onSelectPerson(node.person)}
+                  onPointerDown={(event) => startNodeDrag(event, node)}
+                  onClick={() => handleNodeClick(node.person)}
                   onMouseEnter={() => setHoveredNodeId(node.person.id)}
                   onMouseLeave={() => setHoveredNodeId(undefined)}
                 >
