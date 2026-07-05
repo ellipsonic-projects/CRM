@@ -21,6 +21,12 @@ export const env = {
 
   jwtSecret: required('JWT_SECRET'),
 
+  cloudinary: {
+    cloudName: required('CLOUDINARY_CLOUD_NAME'),
+    apiKey: required('CLOUDINARY_API_KEY'),
+    apiSecret: required('CLOUDINARY_API_SECRET'),
+  },
+
   neo4j: {
     uri: process.env.NEO4J_URI ?? '',
     username: process.env.NEO4J_USERNAME ?? '',

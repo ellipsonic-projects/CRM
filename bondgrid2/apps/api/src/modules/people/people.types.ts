@@ -20,6 +20,8 @@ export interface Person {
   notes?: string;
 
   profilePicture?: string;
+  profilePictureUrl?: string;
+  profilePicturePublicId?: string;
 
   hasLogin: boolean;
 

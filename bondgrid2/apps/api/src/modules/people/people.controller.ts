@@ -7,6 +7,28 @@ import {
   updatePersonSchema,
 } from './people.schema';
 
+function normalizeMultipartBody(body: unknown): Record<string, unknown> {
+  if (!body || typeof body !== 'object') {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(body as Record<string, unknown>)
+      .map(([key, value]) => {
+        if (value === '') {
+          return [key, undefined];
+        }
+
+        if (key === 'hasLogin' && typeof value === 'string') {
+          return [key, value === 'true'];
+        }
+
+        return [key, value];
+      })
+      .filter(([, value]) => value !== undefined),
+  );
+}
+
 export class PeopleController {
   constructor(private readonly peopleService = new PeopleService()) {}
 
@@ -16,7 +38,7 @@ export class PeopleController {
     next: NextFunction,
   ): Promise<void> => {
     try {
-      const body = createPersonSchema.parse(req.body);
+      const body = createPersonSchema.parse(normalizeMultipartBody(req.body));
 
       if (!req.user) {
         res.status(401).json({
@@ -29,6 +51,7 @@ export class PeopleController {
       const person = await this.peopleService.createPerson(
         req.user.organizationId,
         body,
+        req.file,
       );
 
       if (!person) {
@@ -153,7 +176,7 @@ export class PeopleController {
         return;
       }
 
-      const body = updatePersonSchema.parse(req.body);
+      const body = updatePersonSchema.parse(normalizeMultipartBody(req.body));
 
       if (!req.user) {
         res.status(401).json({
@@ -167,6 +190,7 @@ export class PeopleController {
         req.user.organizationId,
         id,
         body,
+        req.file,
       );
 
       if (!person) {

@@ -8,6 +8,14 @@ import {
 } from './people.schema';
 import { PaginatedPeople, Person } from './people.types';
 
+type PersonImageMetadata = {
+  profilePictureUrl?: string;
+  profilePicturePublicId?: string;
+};
+
+type CreatePersonInput = CreatePersonDto & PersonImageMetadata;
+type UpdatePersonInput = UpdatePersonDto & PersonImageMetadata;
+
 const removeUndefined = <T extends object>(value: T): T =>
   Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
@@ -39,7 +47,7 @@ const toPositiveInteger = (value: unknown, fallback: number): number => {
 export class PeopleRepository {
   async create(
     organizationId: string,
-    data: CreatePersonDto,
+    data: CreatePersonInput,
   ): Promise<Person | null> {
     const session = getSession();
 
@@ -63,6 +71,8 @@ export class PeopleRepository {
       notes: data.notes,
 
       profilePicture: data.profilePicture,
+      profilePictureUrl: data.profilePictureUrl,
+      profilePicturePublicId: data.profilePicturePublicId,
 
       hasLogin: data.hasLogin ?? false,
 
@@ -194,7 +204,7 @@ export class PeopleRepository {
   async update(
     organizationId: string,
     id: string,
-    data: UpdatePersonDto,
+    data: UpdatePersonInput,
   ): Promise<Person | null> {
     const session = getSession();
     const updates = removeUndefined({

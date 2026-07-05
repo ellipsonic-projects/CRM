@@ -45,6 +45,7 @@ interface PersonFormState {
   area: string;
   notes: string;
   profilePicture: string;
+  profilePictureFile?: File;
   hasLogin: boolean;
   username: string;
   temporaryPassword: string;
@@ -63,6 +64,7 @@ const emptyPersonForm: PersonFormState = {
   area: '',
   notes: '',
   profilePicture: '',
+  profilePictureFile: undefined,
   hasLogin: false,
   username: '',
   temporaryPassword: '',
@@ -182,12 +184,11 @@ export default function NetworkPage() {
       city: optional(form.city),
       area: optional(form.area),
       notes: optional(form.notes),
-      profilePicture: optional(form.profilePicture),
       hasLogin: form.hasLogin,
     };
 
     try {
-      const created = await createPerson(payload);
+      const created = await createPerson(payload, form.profilePictureFile);
       setPeople((current) =>
         [...current, created].sort((first, second) =>
           first.fullName.localeCompare(second.fullName),
@@ -208,12 +209,16 @@ export default function NetworkPage() {
     }
   };
 
-  const handleUpdatePerson = async (id: string, data: UpdatePersonInput) => {
+  const handleUpdatePerson = async (
+    id: string,
+    data: UpdatePersonInput,
+    profilePicture?: File,
+  ) => {
     setSaving(true);
     setDrawerError(undefined);
 
     try {
-      const updated = await updatePerson(id, data);
+      const updated = await updatePerson(id, data, profilePicture);
       setPeople((current) =>
         current
           .map((person) => (person.id === updated.id ? updated : person))
@@ -429,8 +434,12 @@ export default function NetworkPage() {
                   <AvatarUpload
                     value={form.profilePicture}
                     name={form.fullName}
-                    onChange={(profilePicture) =>
-                      setForm({ ...form, profilePicture })
+                    onChange={(profilePicture, profilePictureFile) =>
+                      setForm({
+                        ...form,
+                        profilePicture,
+                        profilePictureFile,
+                      })
                     }
                   />
                 </Field>

@@ -7,7 +7,11 @@ interface PersonDrawerProps {
   person?: Person;
   saving: boolean;
   error?: string;
-  onUpdatePerson: (id: string, data: UpdatePersonInput) => Promise<void>;
+  onUpdatePerson: (
+    id: string,
+    data: UpdatePersonInput,
+    profilePicture?: File,
+  ) => Promise<void>;
   onDeletePerson: (id: string) => Promise<void>;
 }
 
@@ -22,6 +26,7 @@ interface EditFormState {
   area: string;
   notes: string;
   profilePicture: string;
+  profilePictureFile?: File;
   hasLogin: boolean;
 }
 
@@ -36,6 +41,7 @@ const emptyForm: EditFormState = {
   area: '',
   notes: '',
   profilePicture: '',
+  profilePictureFile: undefined,
   hasLogin: false,
 };
 
@@ -54,7 +60,8 @@ function toFormState(person?: Person): EditFormState {
     city: person.city ?? '',
     area: person.area ?? '',
     notes: person.notes ?? '',
-    profilePicture: person.profilePicture ?? '',
+    profilePicture: person.profilePictureUrl ?? person.profilePicture ?? '',
+    profilePictureFile: undefined,
     hasLogin: person.hasLogin,
   };
 }
@@ -87,19 +94,25 @@ export default function PersonDrawer({
       return;
     }
 
-    await onUpdatePerson(person.id, {
-      fullName: form.fullName.trim(),
-      phone: optional(form.phone),
-      email: optional(form.email),
-      gender: form.gender,
-      occupation: optional(form.occupation),
-      state: form.state.trim(),
-      city: optional(form.city),
-      area: optional(form.area),
-      notes: optional(form.notes),
-      profilePicture: optional(form.profilePicture),
-      hasLogin: form.hasLogin,
-    });
+    await onUpdatePerson(
+      person.id,
+      {
+        fullName: form.fullName.trim(),
+        phone: optional(form.phone),
+        email: optional(form.email),
+        gender: form.gender,
+        occupation: optional(form.occupation),
+        state: form.state.trim(),
+        city: optional(form.city),
+        area: optional(form.area),
+        notes: optional(form.notes),
+        profilePicture: form.profilePictureFile
+          ? undefined
+          : optional(form.profilePicture),
+        hasLogin: form.hasLogin,
+      },
+      form.profilePictureFile,
+    );
 
     setEditing(false);
   };
@@ -234,8 +247,8 @@ export default function PersonDrawer({
             <AvatarUpload
               value={form.profilePicture}
               name={form.fullName}
-              onChange={(profilePicture) =>
-                setForm({ ...form, profilePicture })
+              onChange={(profilePicture, profilePictureFile) =>
+                setForm({ ...form, profilePicture, profilePictureFile })
               }
             />
           </Field>
@@ -271,9 +284,9 @@ export default function PersonDrawer({
       ) : (
         <div className="mt-6">
           <div className="flex items-center gap-4">
-            {person.profilePicture ? (
+            {(person.profilePictureUrl ?? person.profilePicture) ? (
               <img
-                src={person.profilePicture}
+                src={person.profilePictureUrl ?? person.profilePicture}
                 alt=""
                 className="h-16 w-16 rounded-full object-cover"
               />

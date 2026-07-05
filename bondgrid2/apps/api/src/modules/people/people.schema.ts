@@ -45,6 +45,9 @@ const personFieldsSchema = z.object({
   profilePicture: z
     .string({ error: 'Please enter a valid profile picture URL.' })
     .url({ message: 'Please enter a valid profile picture URL.' })
+    .refine((value) => !value.startsWith('data:'), {
+      message: 'Please upload profile pictures as an image file.',
+    })
     .optional(),
 
   hasLogin: z.boolean().default(false),

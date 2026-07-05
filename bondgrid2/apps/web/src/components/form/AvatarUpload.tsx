@@ -3,13 +3,13 @@
 import { ChangeEvent, DragEvent, useRef, useState } from 'react';
 import { ImagePlus, RefreshCw, UserRound } from 'lucide-react';
 
-const MAX_IMAGE_SIZE_BYTES = 1024 * 1024;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 interface AvatarUploadProps {
   value: string;
   name: string;
-  onChange: (value: string) => void;
+  onChange: (value: string, file?: File) => void;
 }
 
 function getInitials(name: string): string {
@@ -43,14 +43,14 @@ export default function AvatarUpload({
     }
 
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
-      setError('Image must be 1 MB or smaller.');
+      setError('Image must be 5 MB or smaller.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result === 'string') {
-        onChange(reader.result);
+        onChange(reader.result, file);
       }
     };
     reader.readAsDataURL(file);
@@ -102,7 +102,7 @@ export default function AvatarUpload({
             {value ? 'Replace profile picture' : 'Upload profile picture'}
           </span>
           <span className="mt-1 block text-sm text-slate-400">
-            Click to choose or drop an image. JPG, PNG, or WebP up to 1 MB.
+            Click to choose or drop an image. JPG, PNG, or WebP up to 5 MB.
           </span>
         </span>
       </button>

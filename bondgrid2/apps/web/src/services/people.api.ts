@@ -16,6 +16,8 @@ export interface Person {
   area?: string;
   notes?: string;
   profilePicture?: string;
+  profilePictureUrl?: string;
+  profilePicturePublicId?: string;
   hasLogin: boolean;
   createdAt: string;
   updatedAt: string;
@@ -80,13 +82,19 @@ function getErrorMessage(payload: ApiFailure): string {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData =
+    typeof FormData !== 'undefined' && init?.body instanceof FormData;
+  const headers = isFormData
+    ? init?.headers
+    : {
+        'Content-Type': 'application/json',
+        ...init?.headers,
+      };
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
+    headers,
   });
 
   if (response.status === 204) {
@@ -108,20 +116,71 @@ export async function getPeople(): Promise<Person[]> {
   return request<Person[]>('/api/v1/people');
 }
 
-export async function createPerson(data: CreatePersonInput): Promise<Person> {
+function appendOptionalFormValue(
+  formData: FormData,
+  key: string,
+  value: string | boolean | undefined,
+): void {
+  if (value === undefined) {
+    return;
+  }
+
+  formData.append(key, String(value));
+}
+
+function toPersonFormData(
+  data: CreatePersonInput | UpdatePersonInput,
+  profilePicture: File,
+): FormData {
+  const formData = new FormData();
+
+  appendOptionalFormValue(formData, 'fullName', data.fullName);
+  appendOptionalFormValue(formData, 'phone', data.phone);
+  appendOptionalFormValue(formData, 'email', data.email);
+  appendOptionalFormValue(formData, 'gender', data.gender);
+  appendOptionalFormValue(formData, 'occupation', data.occupation);
+  appendOptionalFormValue(formData, 'state', data.state);
+  appendOptionalFormValue(formData, 'city', data.city);
+  appendOptionalFormValue(formData, 'area', data.area);
+  appendOptionalFormValue(formData, 'notes', data.notes);
+  appendOptionalFormValue(formData, 'hasLogin', data.hasLogin);
+  formData.append('profilePicture', profilePicture);
+
+  return formData;
+}
+
+export async function createPerson(
+  data: CreatePersonInput,
+  profilePicture?: File,
+): Promise<Person> {
+  if (!profilePicture) {
+    return request<Person>('/api/v1/people', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   return request<Person>('/api/v1/people', {
     method: 'POST',
-    body: JSON.stringify(data),
+    body: toPersonFormData(data, profilePicture),
   });
 }
 
 export async function updatePerson(
   id: string,
   data: UpdatePersonInput,
+  profilePicture?: File,
 ): Promise<Person> {
+  if (!profilePicture) {
+    return request<Person>(`/api/v1/people/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   return request<Person>(`/api/v1/people/${id}`, {
     method: 'PATCH',
-    body: JSON.stringify(data),
+    body: toPersonFormData(data, profilePicture),
   });
 }
 

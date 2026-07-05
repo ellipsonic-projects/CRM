@@ -5,13 +5,20 @@ import {
   UpdatePersonDto,
 } from './people.schema';
 import { PaginatedPeople, Person } from './people.types';
+import { UploadService } from '../uploads';
+
+const PERSON_PROFILE_PICTURE_FOLDER = 'bondgrid/people';
 
 export class PeopleService {
-  constructor(private readonly repository = new PeopleRepository()) {}
+  constructor(
+    private readonly repository = new PeopleRepository(),
+    private readonly uploadService = new UploadService(),
+  ) {}
 
   async createPerson(
     organizationId: string,
     data: CreatePersonDto,
+    profilePicture?: Express.Multer.File,
   ): Promise<Person | null> {
     // Future business rules:
     // - Duplicate phone/email detection
@@ -20,7 +27,27 @@ export class PeopleService {
     // - Auto-create login
     // - Event publishing
 
-    return this.repository.create(organizationId, data);
+    if (!profilePicture) {
+      return this.repository.create(organizationId, data);
+    }
+
+    const uploaded = await this.uploadService.uploadImage(
+      profilePicture.buffer,
+      PERSON_PROFILE_PICTURE_FOLDER,
+    );
+
+    const created = await this.repository.create(organizationId, {
+      ...data,
+      profilePicture: uploaded.secureUrl,
+      profilePictureUrl: uploaded.secureUrl,
+      profilePicturePublicId: uploaded.publicId,
+    });
+
+    if (!created) {
+      await this.uploadService.deleteImage(uploaded.publicId);
+    }
+
+    return created;
   }
 
   async listPeople(
@@ -41,11 +68,48 @@ export class PeopleService {
     organizationId: string,
     id: string,
     data: UpdatePersonDto,
+    profilePicture?: Express.Multer.File,
   ): Promise<Person | null> {
-    return this.repository.update(organizationId, id, data);
+    if (!profilePicture) {
+      return this.repository.update(organizationId, id, data);
+    }
+
+    const existing = await this.repository.findById(organizationId, id);
+
+    if (!existing) {
+      return null;
+    }
+
+    const uploaded = await this.uploadService.uploadImage(
+      profilePicture.buffer,
+      PERSON_PROFILE_PICTURE_FOLDER,
+    );
+
+    await this.uploadService.deleteImage(existing.profilePicturePublicId);
+
+    const updated = await this.repository.update(organizationId, id, {
+      ...data,
+      profilePicture: uploaded.secureUrl,
+      profilePictureUrl: uploaded.secureUrl,
+      profilePicturePublicId: uploaded.publicId,
+    });
+
+    if (!updated) {
+      await this.uploadService.deleteImage(uploaded.publicId);
+    }
+
+    return updated;
   }
 
   async deletePerson(organizationId: string, id: string): Promise<boolean> {
+    const existing = await this.repository.findById(organizationId, id);
+
+    if (!existing) {
+      return false;
+    }
+
+    await this.uploadService.deleteImage(existing.profilePicturePublicId);
+
     return this.repository.delete(organizationId, id);
   }
 }
