@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import PasswordInput from '../../components/form/PasswordInput';
 import { adminSignup, AdminSignupInput } from '../../services/auth.api';
+import {
+  getPasswordPolicyMessage,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validateCreatedPassword,
+} from '../../utils/password';
 
 type OrganizationType = AdminSignupInput['organization']['organizationType'];
 
@@ -76,6 +82,13 @@ export default function AdminSignupPage() {
 
       if (form.password !== form.confirmPassword) {
         setError('Passwords do not match.');
+        return false;
+      }
+
+      const passwordError = validateCreatedPassword(form.password);
+
+      if (passwordError) {
+        setError(passwordError);
         return false;
       }
     }
@@ -202,17 +215,26 @@ export default function AdminSignupPage() {
                 <PasswordInput
                   className="input"
                   value={form.password}
+                  minLength={PASSWORD_MIN_LENGTH}
+                  maxLength={PASSWORD_MAX_LENGTH}
+                  autoComplete="new-password"
                   onChange={(event) =>
                     setForm({ ...form, password: event.target.value })
                   }
                   required
                 />
+                <p className="mt-2 text-xs text-slate-500">
+                  {getPasswordPolicyMessage()} Longer passphrases are welcome.
+                </p>
               </Field>
 
               <Field label="Confirm Password">
                 <PasswordInput
                   className="input"
                   value={form.confirmPassword}
+                  minLength={PASSWORD_MIN_LENGTH}
+                  maxLength={PASSWORD_MAX_LENGTH}
+                  autoComplete="new-password"
                   onChange={(event) =>
                     setForm({
                       ...form,

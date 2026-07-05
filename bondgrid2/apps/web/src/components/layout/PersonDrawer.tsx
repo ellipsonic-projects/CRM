@@ -1,10 +1,19 @@
 import { FormEvent, ReactNode, useEffect, useState } from 'react';
-import { Edit3, Trash2, X } from 'lucide-react';
+import { Edit3, Plus, Trash2, X } from 'lucide-react';
 import { Person, UpdatePersonInput, Gender } from '../../services/people.api';
+import {
+  CreateRelationshipInput,
+  Relationship,
+  RelationshipTypeOption,
+  UpdateRelationshipInput,
+} from '../../services/relationships.api';
 import AvatarUpload from '../form/AvatarUpload';
 
 interface PersonDrawerProps {
   person?: Person;
+  people: Person[];
+  relationships: Relationship[];
+  relationshipTypes: RelationshipTypeOption[];
   saving: boolean;
   error?: string;
   onUpdatePerson: (
@@ -13,6 +22,13 @@ interface PersonDrawerProps {
     profilePicture?: File,
   ) => Promise<void>;
   onDeletePerson: (id: string) => Promise<void>;
+  onCreateRelationship: (data: CreateRelationshipInput) => Promise<void>;
+  onUpdateRelationship: (
+    id: string,
+    data: UpdateRelationshipInput,
+  ) => Promise<void>;
+  onDeleteRelationship: (id: string) => Promise<void>;
+  onSelectPerson: (person: Person) => void;
 }
 
 interface EditFormState {
@@ -30,6 +46,13 @@ interface EditFormState {
   hasLogin: boolean;
 }
 
+interface RelationshipFormState {
+  relationshipOptionId: string;
+  relatedPersonId: string;
+  notes: string;
+  search: string;
+}
+
 const emptyForm: EditFormState = {
   fullName: '',
   phone: '',
@@ -43,6 +66,13 @@ const emptyForm: EditFormState = {
   profilePicture: '',
   profilePictureFile: undefined,
   hasLogin: false,
+};
+
+const emptyRelationshipForm: RelationshipFormState = {
+  relationshipOptionId: '',
+  relatedPersonId: '',
+  notes: '',
+  search: '',
 };
 
 function toFormState(person?: Person): EditFormState {
@@ -74,17 +104,34 @@ function optional(value: string): string | undefined {
 
 export default function PersonDrawer({
   person,
+  people,
+  relationships,
+  relationshipTypes,
   saving,
   error,
   onUpdatePerson,
   onDeletePerson,
+  onCreateRelationship,
+  onUpdateRelationship,
+  onDeleteRelationship,
+  onSelectPerson,
 }: PersonDrawerProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditFormState>(toFormState(person));
+  const [isAddingRelationship, setIsAddingRelationship] = useState(false);
+  const [editingRelationshipId, setEditingRelationshipId] = useState<string>();
+  const [relationshipForm, setRelationshipForm] =
+    useState<RelationshipFormState>(emptyRelationshipForm);
+  const [relationshipToDelete, setRelationshipToDelete] =
+    useState<Relationship>();
 
   useEffect(() => {
     setForm(toFormState(person));
     setEditing(false);
+    setIsAddingRelationship(false);
+    setEditingRelationshipId(undefined);
+    setRelationshipForm(emptyRelationshipForm);
+    setRelationshipToDelete(undefined);
   }, [person]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -115,6 +162,102 @@ export default function PersonDrawer({
     );
 
     setEditing(false);
+  };
+
+  const selectablePeople = people.filter(
+    (candidate) => candidate.id !== person?.id,
+  );
+  const editingRelationship = relationships.find(
+    (relationship) => relationship.id === editingRelationshipId,
+  );
+  const relationshipFormPeople = editingRelationship
+    ? people.filter(
+        (candidate) => candidate.id !== editingRelationship.sourcePersonId,
+      )
+    : selectablePeople;
+  const filteredRelationshipPeople = relationshipFormPeople.filter(
+    (candidate) => {
+      const search = relationshipForm.search.trim().toLowerCase();
+
+      if (!search) {
+        return true;
+      }
+
+      return [candidate.fullName, candidate.phone, candidate.email]
+        .filter(Boolean)
+        .some((value) => value?.toLowerCase().includes(search));
+    },
+  );
+  const groupedRelationshipTypes = relationshipTypes.reduce(
+    (groups, type) => {
+      const group = type.group ?? 'Custom';
+      groups[group] = [...(groups[group] ?? []), type];
+      return groups;
+    },
+    {} as Record<string, RelationshipTypeOption[]>,
+  );
+
+  const startAddRelationship = () => {
+    setEditingRelationshipId(undefined);
+    setRelationshipForm({
+      ...emptyRelationshipForm,
+      relationshipOptionId: relationshipTypes[0]?.id ?? '',
+    });
+    setIsAddingRelationship(true);
+  };
+
+  const startEditRelationship = (relationship: Relationship) => {
+    setIsAddingRelationship(false);
+    setEditingRelationshipId(relationship.id);
+    setRelationshipForm({
+      relationshipOptionId:
+        typeof relationship.metadata.relationshipOptionId === 'string'
+          ? relationship.metadata.relationshipOptionId
+          : (relationshipTypes.find(
+              (type) => type.canonicalId === relationship.type,
+            )?.id ?? ''),
+      relatedPersonId: relationship.relatedPerson.id,
+      notes: relationship.notes ?? '',
+      search: '',
+    });
+  };
+
+  const cancelRelationshipForm = () => {
+    setIsAddingRelationship(false);
+    setEditingRelationshipId(undefined);
+    setRelationshipForm(emptyRelationshipForm);
+  };
+
+  const handleRelationshipSubmit = async (
+    event: FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+
+    if (
+      !person ||
+      !relationshipForm.relationshipOptionId ||
+      !relationshipForm.relatedPersonId
+    ) {
+      return;
+    }
+
+    if (editingRelationshipId) {
+      await onUpdateRelationship(editingRelationshipId, {
+        relationshipOptionId: relationshipForm.relationshipOptionId,
+        selectedPersonId: person.id,
+        relatedPersonId: relationshipForm.relatedPersonId,
+        notes: optional(relationshipForm.notes),
+      });
+    } else {
+      await onCreateRelationship({
+        relationshipOptionId: relationshipForm.relationshipOptionId,
+        selectedPersonId: person.id,
+        relatedPersonId: relationshipForm.relatedPersonId,
+        notes: optional(relationshipForm.notes),
+      });
+    }
+
+    cancelRelationshipForm();
   };
 
   return (
@@ -318,9 +461,323 @@ export default function PersonDrawer({
             <Detail label="Area" value={person.area} />
             <Detail label="Notes" value={person.notes} />
           </dl>
+
+          <section className="mt-8 border-t border-slate-800 pt-6">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="font-semibold text-slate-100">Relationships</h3>
+              <button
+                className="rounded-lg p-2 text-slate-300 hover:bg-slate-900"
+                onClick={startAddRelationship}
+                disabled={saving || selectablePeople.length === 0}
+                title="Add relationship"
+              >
+                <Plus size={18} />
+              </button>
+            </div>
+
+            {selectablePeople.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-500">
+                Add another person before creating relationships.
+              </p>
+            ) : null}
+
+            {isAddingRelationship || editingRelationshipId ? (
+              <RelationshipForm
+                saving={saving}
+                form={relationshipForm}
+                people={relationshipFormPeople}
+                filteredPeople={filteredRelationshipPeople}
+                groupedRelationshipTypes={groupedRelationshipTypes}
+                relationshipTypes={relationshipTypes}
+                submitLabel={
+                  editingRelationshipId
+                    ? 'Save Relationship'
+                    : 'Create Relationship'
+                }
+                onCancel={cancelRelationshipForm}
+                onChange={setRelationshipForm}
+                onSubmit={handleRelationshipSubmit}
+              />
+            ) : null}
+
+            {relationships.length === 0 ? (
+              <div className="mt-4 rounded-xl border border-dashed border-slate-800 bg-slate-900/40 p-4 text-center">
+                <p className="font-medium text-slate-200">
+                  No relationships yet.
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Create the first relationship to connect this person to
+                  others.
+                </p>
+                <button
+                  className="mt-4 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+                  onClick={startAddRelationship}
+                  disabled={saving || selectablePeople.length === 0}
+                >
+                  Add Relationship
+                </button>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {relationships.map((relationship) => (
+                  <article
+                    role="button"
+                    tabIndex={0}
+                    key={relationship.id}
+                    className="w-full cursor-pointer rounded-xl border border-slate-800 bg-slate-900/60 p-3 text-left transition hover:border-blue-700 hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onClick={() => onSelectPerson(relationship.relatedPerson)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        onSelectPerson(relationship.relatedPerson);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Avatar person={relationship.relatedPerson} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-100">
+                          {relationship.relatedPerson.fullName}
+                        </p>
+                        <p className="text-sm font-medium text-slate-100">
+                          {relationship.displayLabel}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {relationship.relatedPerson.phone ?? 'No phone'}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {[
+                            relationship.relatedPerson.city,
+                            relationship.relatedPerson.state,
+                          ]
+                            .filter(Boolean)
+                            .join(', ') || 'No location'}
+                        </p>
+                        {relationship.notes ? (
+                          <p className="mt-2 text-xs text-slate-500">
+                            {relationship.notes}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            startEditRelationship(relationship);
+                          }}
+                          disabled={saving}
+                          title="Edit relationship"
+                        >
+                          <Edit3 size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg p-2 text-red-300 hover:bg-red-950/40"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setRelationshipToDelete(relationship);
+                          }}
+                          disabled={saving}
+                          title="Delete relationship"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
         </div>
       )}
+
+      {relationshipToDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
+          <div className="w-full max-w-sm rounded-xl border border-slate-800 bg-slate-950 p-5 shadow-2xl">
+            <h3 className="text-lg font-semibold">Delete Relationship?</h3>
+            <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/70 p-3">
+              <p className="font-medium text-slate-100">
+                {relationshipToDelete.sourcePerson.fullName}
+              </p>
+              <p className="my-2 text-sm text-slate-400">
+                {relationshipToDelete.displayLabel}
+              </p>
+              <p className="font-medium text-slate-100">
+                {relationshipToDelete.targetPerson.fullName}
+              </p>
+            </div>
+            <p className="mt-2 text-sm text-slate-400">
+              This action cannot be undone.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                className="rounded-xl border border-slate-700 px-4 py-2 text-slate-300 hover:bg-slate-900"
+                onClick={() => setRelationshipToDelete(undefined)}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+              <button
+                className="rounded-xl bg-red-600 px-4 py-2 font-medium hover:bg-red-500 disabled:opacity-60"
+                disabled={saving}
+                onClick={async () => {
+                  await onDeleteRelationship(relationshipToDelete.id);
+                  setRelationshipToDelete(undefined);
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </aside>
+  );
+}
+
+function RelationshipForm({
+  saving,
+  form,
+  people,
+  filteredPeople,
+  groupedRelationshipTypes,
+  relationshipTypes,
+  submitLabel,
+  onCancel,
+  onChange,
+  onSubmit,
+}: {
+  saving: boolean;
+  form: RelationshipFormState;
+  people: Person[];
+  filteredPeople: Person[];
+  groupedRelationshipTypes: Record<string, RelationshipTypeOption[]>;
+  relationshipTypes: RelationshipTypeOption[];
+  submitLabel: string;
+  onCancel: () => void;
+  onChange: (form: RelationshipFormState) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <form
+      className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 p-3"
+      onSubmit={onSubmit}
+    >
+      <div className="space-y-3">
+        <Field label="Relationship Type">
+          <select
+            className="input"
+            value={form.relationshipOptionId}
+            onChange={(event) =>
+              onChange({
+                ...form,
+                relationshipOptionId: event.target.value,
+              })
+            }
+            required
+          >
+            {Object.entries(groupedRelationshipTypes).map(([group, types]) => (
+              <optgroup key={group} label={group}>
+                {types.map((type) => (
+                  <option key={type.id} value={type.id}>
+                    {type.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </Field>
+
+        <Field label="Existing Person">
+          <input
+            className="input mb-2"
+            placeholder="Search by name, phone, or email"
+            value={form.search}
+            onChange={(event) =>
+              onChange({ ...form, search: event.target.value })
+            }
+          />
+          <select
+            className="input"
+            value={form.relatedPersonId}
+            onChange={(event) =>
+              onChange({ ...form, relatedPersonId: event.target.value })
+            }
+            required
+          >
+            <option value="">Select a person</option>
+            {filteredPeople.map((person) => (
+              <option key={person.id} value={person.id}>
+                {[person.fullName, person.phone, person.email]
+                  .filter(Boolean)
+                  .join(' • ')}
+              </option>
+            ))}
+          </select>
+          {filteredPeople.length === 0 ? (
+            <p className="mt-2 text-xs text-slate-500">
+              No existing people match your search.
+            </p>
+          ) : null}
+        </Field>
+
+        <Field label="Notes">
+          <textarea
+            className="input min-h-20 resize-none"
+            value={form.notes}
+            onChange={(event) =>
+              onChange({ ...form, notes: event.target.value })
+            }
+          />
+        </Field>
+      </div>
+
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          type="button"
+          className="rounded-xl border border-slate-700 px-3 py-2 text-sm text-slate-300 hover:bg-slate-900"
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+        <button
+          className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium hover:bg-blue-500 disabled:opacity-60"
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function Avatar({ person }: { person: Person }) {
+  const image = person.profilePictureUrl ?? person.profilePicture;
+
+  if (image) {
+    return (
+      <img
+        src={image}
+        alt=""
+        className="h-11 w-11 shrink-0 rounded-full object-cover"
+      />
+    );
+  }
+
+  return (
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-semibold text-white">
+      {person.fullName
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join('')}
+    </div>
   );
 }
 

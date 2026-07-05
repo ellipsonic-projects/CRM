@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+const PASSWORD_MIN_LENGTH = 15;
+const PASSWORD_MAX_LENGTH = 128;
+
 export const roleSchema = z.enum(['ADMIN', 'VOLUNTEER', 'VIEWER']);
 
 export const loginSchema = z.object({
@@ -32,13 +35,19 @@ export const adminSignupSchema = z
           message: 'Please enter a valid 10-digit Indian mobile number.',
         }),
       password: z
-        .string({ error: 'Password must be at least 8 characters.' })
-        .min(8, { message: 'Password must be at least 8 characters.' })
-        .max(128, { message: 'Password must be 128 characters or less.' }),
+        .string({ error: 'Password is required.' })
+        .min(PASSWORD_MIN_LENGTH, {
+          message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+        })
+        .max(PASSWORD_MAX_LENGTH, {
+          message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+        }),
       confirmPassword: z
         .string({ error: 'Please confirm your password.' })
-        .min(8, { message: 'Please confirm your password.' })
-        .max(128, { message: 'Password must be 128 characters or less.' }),
+        .min(1, { message: 'Please confirm your password.' })
+        .max(PASSWORD_MAX_LENGTH, {
+          message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+        }),
     }),
     organization: z.object({
       name: z
