@@ -97,3 +97,23 @@ export async function createOrganization(
     body: JSON.stringify(data),
   });
 }
+
+export async function updateOrganization(
+  data: Partial<CreateOrganizationInput>,
+): Promise<Organization> {
+  return request<Organization>('/api/v1/organizations/me', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteOrganization(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/organizations/me`, {
+    method: 'DELETE',
+    credentials: 'include',
+  });
+
+  if (!response.ok) {
+    throw new Error('Could not delete organization.');
+  }
+}

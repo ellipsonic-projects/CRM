@@ -1,6 +1,9 @@
 import { randomUUID } from 'crypto';
 import { getSession } from '../../database/neo4j';
-import { CreateOrganizationDto } from './organization.schema';
+import {
+  CreateOrganizationDto,
+  UpdateOrganizationDto,
+} from './organization.schema';
 import { Organization } from './organization.types';
 
 const removeUndefined = <T extends object>(value: T): T =>
@@ -62,6 +65,75 @@ export class OrganizationRepository {
       }
 
       return record.get('organization').properties as Organization;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async update(
+    organizationId: string,
+    data: UpdateOrganizationDto,
+  ): Promise<Organization | null> {
+    const session = getSession();
+    const updates = removeUndefined({
+      ...data,
+      updatedAt: new Date().toISOString(),
+    });
+
+    try {
+      const result = await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (organization:Organization {id: $organizationId})
+          SET organization += $updates
+          RETURN organization
+          LIMIT 1
+          `,
+          { organizationId, updates },
+        ),
+      );
+
+      const record = result.records[0];
+
+      return record
+        ? (record.get('organization').properties as Organization)
+        : null;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async delete(organizationId: string): Promise<boolean> {
+    const session = getSession();
+
+    try {
+      const result = await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (organization:Organization {id: $organizationId})
+          OPTIONAL MATCH (organization)-[:HAS_PERSON|HAS_EVENT|HAS_USER|HAS_AUDIT_LOG]->(ownedNode)
+          WITH organization, collect(DISTINCT ownedNode) AS ownedNodes
+          FOREACH (node IN ownedNodes | DETACH DELETE node)
+          WITH organization
+          DETACH DELETE organization
+          RETURN count(organization) AS deleted
+          `,
+          { organizationId },
+        ),
+      );
+
+      const deleted = result.records[0]?.get('deleted');
+
+      if (
+        deleted &&
+        typeof deleted === 'object' &&
+        'toNumber' in deleted &&
+        typeof deleted.toNumber === 'function'
+      ) {
+        return deleted.toNumber() > 0;
+      }
+
+      return Number(deleted ?? 0) > 0;
     } finally {
       await session.close();
     }

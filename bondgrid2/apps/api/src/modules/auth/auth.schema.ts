@@ -96,5 +96,39 @@ export const adminSignupSchema = z
     path: ['admin', 'confirmPassword'],
   });
 
+export const createUserSchema = z.object({
+  fullName: z
+    .string({ error: 'Full name is required.' })
+    .trim()
+    .min(2, { message: 'Full name is required.' })
+    .max(100, { message: 'Full name must be 100 characters or less.' }),
+  email: z
+    .string({ error: 'Please enter a valid email address.' })
+    .trim()
+    .email({ message: 'Please enter a valid email address.' }),
+  phone: z
+    .string({
+      error: 'Please enter a valid 10-digit Indian mobile number.',
+    })
+    .regex(/^[6-9]\d{9}$/, {
+      message: 'Please enter a valid 10-digit Indian mobile number.',
+    }),
+  password: z
+    .string({ error: 'Password is required.' })
+    .min(PASSWORD_MIN_LENGTH, {
+      message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+    })
+    .max(PASSWORD_MAX_LENGTH, {
+      message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+    }),
+  role: roleSchema,
+});
+
+export const updateUserRoleSchema = z.object({
+  role: roleSchema,
+});
+
 export type LoginDto = z.infer<typeof loginSchema>;
 export type AdminSignupDto = z.infer<typeof adminSignupSchema>;
+export type CreateUserDto = z.infer<typeof createUserSchema>;
+export type UpdateUserRoleDto = z.infer<typeof updateUserRoleSchema>;

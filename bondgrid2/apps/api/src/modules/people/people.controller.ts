@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
+import { recordAudit } from '../audit';
 import { PeopleService } from './people.service';
 import {
   createPersonSchema,
@@ -61,6 +62,16 @@ export class PeopleController {
         });
         return;
       }
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'CREATE_PERSON',
+        entity: 'Person',
+        entityId: person.id,
+        entityName: person.fullName,
+        summary: `Created person ${person.fullName}.`,
+      });
 
       res.status(201).json({
         success: true,
@@ -150,6 +161,16 @@ export class PeopleController {
         });
         return;
       }
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'UPDATE_PERSON',
+        entity: 'Person',
+        entityId: person.id,
+        entityName: person.fullName,
+        summary: `Updated person ${person.fullName}.`,
+      });
 
       res.status(200).json({
         success: true,
@@ -246,6 +267,15 @@ export class PeopleController {
         });
         return;
       }
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'DELETE_PERSON',
+        entity: 'Person',
+        entityId: id,
+        summary: `Deleted person ${id}.`,
+      });
 
       res.status(204).send();
     } catch (error) {

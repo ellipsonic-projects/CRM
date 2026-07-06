@@ -3,7 +3,10 @@ import { Search, Plus, Bell, UserCircle2 } from 'lucide-react';
 interface AppHeaderProps {
   search: string;
   onSearchChange: (value: string) => void;
-  onAddPerson: () => void;
+  onAddPerson?: () => void;
+  onPrimaryAction?: () => void;
+  primaryActionLabel?: string;
+  searchPlaceholder?: string;
   onLogout?: () => void;
 }
 
@@ -11,8 +14,13 @@ export default function AppHeader({
   search,
   onSearchChange,
   onAddPerson,
+  onPrimaryAction,
+  primaryActionLabel = 'Add Person',
+  searchPlaceholder = 'Search people, occupation, city, relationship...',
   onLogout,
 }: AppHeaderProps) {
+  const primaryAction = onPrimaryAction ?? onAddPerson;
+
   return (
     <header className="h-16 border-b border-slate-800 bg-slate-950 px-6 flex items-center justify-between">
       {/* Logo */}
@@ -30,7 +38,7 @@ export default function AppHeader({
         />
 
         <input
-          placeholder="Search people, occupation, city, relationship..."
+          placeholder={searchPlaceholder}
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           className="w-full rounded-xl bg-slate-900 border border-slate-800 py-2 pl-10 pr-4 outline-none focus:border-blue-500"
@@ -39,13 +47,15 @@ export default function AppHeader({
 
       {/* Actions */}
       <div className="flex items-center gap-3">
-        <button
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-500 transition"
-          onClick={onAddPerson}
-        >
-          <Plus size={18} />
-          Add Person
-        </button>
+        {primaryAction ? (
+          <button
+            className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-500 transition"
+            onClick={primaryAction}
+          >
+            <Plus size={18} />
+            {primaryActionLabel}
+          </button>
+        ) : null}
 
         <button className="p-2 rounded-xl hover:bg-slate-900">
           <Bell size={20} />

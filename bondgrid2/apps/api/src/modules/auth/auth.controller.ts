@@ -1,7 +1,28 @@
 import { NextFunction, Request, Response } from 'express';
+import { recordAudit } from '../audit';
 import { clearAuthCookie, setAuthCookie } from '../../utils/cookies';
-import { adminSignupSchema, loginSchema } from './auth.schema';
+import {
+  adminSignupSchema,
+  createUserSchema,
+  loginSchema,
+  updateUserRoleSchema,
+} from './auth.schema';
 import { AuthService } from './auth.service';
+import { User } from './auth.types';
+
+function sanitizeUser(user: User): Omit<User, 'passwordHash'> {
+  const safeUser = {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+
+  return safeUser;
+}
 
 export class AuthController {
   constructor(private readonly authService = new AuthService()) {}
@@ -24,6 +45,14 @@ export class AuthController {
       }
 
       setAuthCookie(res, session.token);
+      void recordAudit({
+        organizationId: session.user.organizationId,
+        userId: session.user.userId,
+        userName: session.user.fullName,
+        action: 'LOGIN',
+        entity: 'Auth',
+        summary: `${session.user.fullName} logged in.`,
+      });
 
       res.status(200).json({
         success: true,
@@ -55,6 +84,16 @@ export class AuthController {
       const session = await this.authService.adminSignup(body);
 
       setAuthCookie(res, session.token);
+      void recordAudit({
+        organizationId: session.user.organizationId,
+        userId: session.user.userId,
+        userName: session.user.fullName,
+        action: 'CREATE_USER',
+        entity: 'User',
+        entityId: session.user.userId,
+        entityName: session.user.fullName,
+        summary: `${session.user.fullName} created the organization admin account.`,
+      });
 
       res.status(201).json({
         success: true,
@@ -99,7 +138,139 @@ export class AuthController {
     }
   };
 
-  logout = async (_req: Request, res: Response): Promise<void> => {
+  listUsers = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required.',
+        });
+        return;
+      }
+
+      const users = await this.authService.listUsers(req.user.organizationId);
+
+      res.status(200).json({
+        success: true,
+        data: users.map(sanitizeUser),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createUser = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required.',
+        });
+        return;
+      }
+
+      const body = createUserSchema.parse(req.body);
+      const user = await this.authService.createUser(
+        req.user.organizationId,
+        body,
+      );
+
+      if (!user) {
+        res.status(409).json({
+          success: false,
+          error: 'A user with this email or phone already exists.',
+        });
+        return;
+      }
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'CREATE_USER',
+        entity: 'User',
+        entityId: user.id,
+        entityName: user.fullName,
+        summary: `Created user ${user.fullName} with ${user.role} role.`,
+      });
+
+      res.status(201).json({
+        success: true,
+        data: sanitizeUser(user),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateUserRole = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      if (!req.user || typeof id !== 'string') {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required.',
+        });
+        return;
+      }
+
+      const body = updateUserRoleSchema.parse(req.body);
+      const user = await this.authService.updateUserRole(
+        req.user.organizationId,
+        id,
+        body,
+      );
+
+      if (!user) {
+        res.status(404).json({
+          success: false,
+          error: 'User not found.',
+        });
+        return;
+      }
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'UPDATE_USER_ROLE',
+        entity: 'User',
+        entityId: user.id,
+        entityName: user.fullName,
+        summary: `Changed ${user.fullName}'s role to ${user.role}.`,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: sanitizeUser(user),
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  logout = async (req: Request, res: Response): Promise<void> => {
+    if (req.user) {
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'LOGOUT',
+        entity: 'Auth',
+        summary: 'User logged out.',
+      });
+    }
+
     clearAuthCookie(res);
     res.status(204).send();
   };

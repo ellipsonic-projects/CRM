@@ -1,2 +1,940 @@
 .page {
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.22), transparent 34rem),
+    radial-gradient(circle at 12% 22%, rgba(37, 99, 235, 0.24), transparent 30rem),
+    linear-gradient(180deg, #030711 0%, #07111f 42%, #020617 100%);
+  color: #f8fafc;
+  scroll-behavior: smooth;
+}
+
+.page::before {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  content: '';
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px);
+  background-size: 68px 68px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.75), transparent 78%);
+}
+
+.nav,
+.hero,
+.trusted,
+.why,
+.showcase,
+.features,
+.stats,
+.testimonials,
+.pricing,
+.faq,
+.finalCta,
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 18px 0;
+  transition:
+    padding 260ms ease,
+    backdrop-filter 260ms ease,
+    background 260ms ease,
+    border-color 260ms ease;
+}
+
+.navScrolled {
+  margin-top: 12px;
+  padding: 12px 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.68);
+  backdrop-filter: blur(22px);
+  box-shadow: 0 20px 80px rgba(2, 6, 23, 0.42);
+}
+
+.brand,
+.heroLogo {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.logoMark {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(103, 232, 249, 0.3);
+  border-radius: 11px;
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.22), rgba(37, 99, 235, 0.2)),
+    rgba(15, 23, 42, 0.8);
+  box-shadow:
+    0 0 26px rgba(34, 211, 238, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.navLinks,
+.navActions {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.navLinks a,
+.navActions a {
+  transition:
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.navLinks a:hover,
+.navActions a:hover {
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.navCta {
+  padding: 10px 16px;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.12);
+  box-shadow: 0 0 28px rgba(14, 165, 233, 0.18);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(520px, 1.08fr);
+  gap: 34px;
+  align-items: center;
+  width: min(1240px, calc(100% - 32px));
+  min-height: calc(100vh - 72px);
+  margin: 0 auto;
+  padding: 62px 0 88px;
+}
+
+.heroGlow {
+  position: absolute;
+  top: 4%;
+  right: 8%;
+  width: 520px;
+  height: 520px;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.22), transparent 68%);
+  filter: blur(18px);
+  animation: breathe 7s ease-in-out infinite;
+}
+
+.heroCopy {
+  max-width: 650px;
+  animation: riseIn 900ms ease both;
+}
+
+.heroLogo {
+  margin-bottom: 34px;
+}
+
+.eyebrow,
+.sectionIntro span,
+.finalCta span {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: #67e8f9;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.hero h1,
+.sectionIntro h2,
+.finalCta h2 {
+  margin: 18px 0 0;
+  color: #ffffff;
+  font-weight: 850;
+  letter-spacing: 0;
+  line-height: 1.02;
+}
+
+.hero h1 {
+  max-width: 680px;
+  font-size: clamp(48px, 7vw, 92px);
+}
+
+.hero p,
+.sectionIntro p,
+.glassCard p,
+.featureCard p,
+.priceCard p,
+.testimonial p,
+.faqItem p,
+.footer p {
+  color: #94a3b8;
+  line-height: 1.75;
+}
+
+.hero p {
+  max-width: 610px;
+  margin: 24px 0 0;
+  font-size: 18px;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 36px;
+}
+
+.primaryButton,
+.secondaryButton,
+.priceCard a {
+  position: relative;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 0 22px;
+  overflow: hidden;
+  border-radius: 999px;
+  font-weight: 800;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.primaryButton {
+  border: 1px solid rgba(125, 211, 252, 0.5);
+  background:
+    linear-gradient(135deg, rgba(34, 211, 238, 0.98), rgba(37, 99, 235, 0.96)),
+    #2563eb;
+  color: #03101d;
+  box-shadow:
+    0 18px 60px rgba(14, 165, 233, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.primaryButton::after,
+.secondaryButton::after,
+.priceCard a::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: linear-gradient(110deg, transparent, rgba(255, 255, 255, 0.34), transparent);
+  transform: translateX(-120%);
+  transition: transform 600ms ease;
+}
+
+.primaryButton:hover,
+.secondaryButton:hover,
+.priceCard a:hover {
+  transform: translateY(-3px) scale(1.02);
+}
+
+.primaryButton:hover::after,
+.secondaryButton:hover::after,
+.priceCard a:hover::after {
+  transform: translateX(120%);
+}
+
+.secondaryButton {
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.52);
+  color: #e2e8f0;
+  backdrop-filter: blur(18px);
+}
+
+.heroStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 34px;
+}
+
+.heroStats span {
+  display: grid;
+  gap: 4px;
+  min-width: 112px;
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.38);
+  color: #94a3b8;
+  font-size: 12px;
+  backdrop-filter: blur(14px);
+}
+
+.heroStats strong {
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.heroGraph {
+  min-width: 0;
+  animation: floatIn 1100ms 180ms ease both;
+}
+
+.graphShell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(14, 165, 233, 0.24), transparent 36%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.78), rgba(2, 6, 23, 0.64));
+  box-shadow:
+    0 34px 140px rgba(0, 0, 0, 0.46),
+    0 0 110px rgba(14, 165, 233, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(22px);
+}
+
+.graphShell::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 24%),
+    radial-gradient(circle at 84% 18%, rgba(34, 211, 238, 0.28), transparent 26%),
+    radial-gradient(circle at 22% 78%, rgba(59, 130, 246, 0.24), transparent 32%);
+}
+
+.graphChrome {
+  position: absolute;
+  top: 18px;
+  left: 20px;
+  z-index: 2;
+  display: flex;
+  gap: 8px;
+}
+
+.graphChrome span {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.55);
+}
+
+.graph {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  min-height: 520px;
+  touch-action: none;
+  cursor: grab;
+}
+
+.graph:active {
+  cursor: grabbing;
+}
+
+.orbit {
+  fill: none;
+  stroke: rgba(125, 211, 252, 0.08);
+  stroke-width: 1;
+  stroke-dasharray: 2 10;
+  animation: dash 28s linear infinite;
+}
+
+.edge {
+  fill: none;
+  stroke: url('#edgeGradient');
+  stroke-width: 1.1;
+  stroke-dasharray: 8 14;
+  opacity: 0.44;
+  transition:
+    opacity 180ms ease,
+    stroke-width 180ms ease;
+  animation: dash 9s linear infinite;
+}
+
+.edgeActive {
+  stroke-width: 2.2;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 12px rgba(103, 232, 249, 0.85));
+}
+
+.particle {
+  fill: #a7f3d0;
+  opacity: 0.82;
+  filter: drop-shadow(0 0 8px rgba(167, 243, 208, 0.9));
+}
+
+.nodeGroup {
+  cursor: grab;
+}
+
+.nodeGroup:active {
+  cursor: grabbing;
+}
+
+.nodeHalo {
+  fill: rgba(34, 211, 238, 0.06);
+  stroke: rgba(125, 211, 252, 0.16);
+  transition: fill 180ms ease;
+}
+
+.node {
+  fill: url('#nodeGlow');
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 0.7;
+  transition: r 180ms ease;
+}
+
+.nodeGroup:hover .nodeHalo {
+  fill: rgba(34, 211, 238, 0.2);
+}
+
+.nodeTooltip rect {
+  fill: rgba(2, 6, 23, 0.88);
+  stroke: rgba(125, 211, 252, 0.36);
+  backdrop-filter: blur(12px);
+}
+
+.nodeTooltip text {
+  fill: #e0f2fe;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.graphHud {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 3;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.62);
+  color: #94a3b8;
+  font-size: 12px;
+  backdrop-filter: blur(18px);
+}
+
+.graphHud strong {
+  color: #e0f2fe;
+}
+
+.trusted,
+.why,
+.showcase,
+.features,
+.stats,
+.testimonials,
+.pricing,
+.faq,
+.finalCta {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.trusted {
+  padding: 0 0 96px;
+  text-align: center;
+}
+
+.trusted p {
+  color: #64748b;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
+.logoRail {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.logoRail span {
+  padding: 18px 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.34);
+  color: #cbd5e1;
+  font-weight: 750;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.sectionIntro {
+  max-width: 780px;
+}
+
+.sectionIntro h2,
+.finalCta h2 {
+  font-size: clamp(36px, 5vw, 64px);
+}
+
+.sectionIntro p {
+  margin-top: 18px;
+  font-size: 17px;
+}
+
+.why,
+.showcase,
+.features,
+.testimonials,
+.pricing,
+.faq {
+  padding: 88px 0;
+}
+
+.whyGrid,
+.featureGrid,
+.testimonialGrid,
+.pricingGrid {
+  display: grid;
+  gap: 18px;
+  margin-top: 34px;
+}
+
+.whyGrid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.glassCard,
+.featureCard,
+.testimonial,
+.priceCard,
+.statCard,
+.faqItem {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 30%),
+    rgba(15, 23, 42, 0.45);
+  box-shadow:
+    0 18px 80px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  transition:
+    transform 240ms ease,
+    border-color 240ms ease,
+    box-shadow 240ms ease;
+}
+
+.glassCard:hover,
+.featureCard:hover,
+.testimonial:hover,
+.priceCard:hover,
+.faqItem:hover {
+  border-color: rgba(125, 211, 252, 0.34);
+  transform: translateY(-6px);
+  box-shadow:
+    0 26px 100px rgba(0, 0, 0, 0.34),
+    0 0 46px rgba(14, 165, 233, 0.13),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.glassCard {
+  min-height: 230px;
+  padding: 26px;
+  border-radius: 24px;
+}
+
+.glassCard span {
+  color: #67e8f9;
+  font-weight: 900;
+}
+
+.glassCard h3,
+.featureCard h3,
+.priceCard h3 {
+  margin: 26px 0 10px;
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.showcase .graphShell {
+  margin-top: 34px;
+}
+
+.showcase .graph {
+  min-height: 460px;
+}
+
+.featureGrid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.featureCard {
+  min-height: 260px;
+  padding: 22px;
+  border-radius: 22px;
+}
+
+.featureIcon {
+  display: inline-flex;
+  width: 46px;
+  height: 46px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(125, 211, 252, 0.26);
+  border-radius: 16px;
+  background: rgba(14, 165, 233, 0.11);
+  color: #67e8f9;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 40px 0 88px;
+}
+
+.statCard {
+  display: grid;
+  gap: 8px;
+  padding: 26px;
+  border-radius: 22px;
+}
+
+.statCard strong {
+  color: #ffffff;
+  font-size: clamp(30px, 4vw, 46px);
+}
+
+.statCard span {
+  color: #94a3b8;
+}
+
+.testimonialGrid,
+.pricingGrid {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.testimonial {
+  display: flex;
+  min-height: 280px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 26px;
+  border-radius: 24px;
+}
+
+.testimonial p {
+  color: #dbeafe;
+  font-size: 17px;
+}
+
+.testimonial strong,
+.testimonial span {
+  display: block;
+}
+
+.testimonial span {
+  margin-top: 4px;
+  color: #94a3b8;
+}
+
+.priceCard {
+  padding: 28px;
+  border-radius: 26px;
+}
+
+.priceFeatured {
+  border-color: rgba(103, 232, 249, 0.48);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.2), transparent 46%),
+    rgba(15, 23, 42, 0.58);
+  transform: translateY(-12px);
+}
+
+.priceCard strong {
+  display: block;
+  margin-top: 14px;
+  color: #ffffff;
+  font-size: 42px;
+}
+
+.priceCard ul {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 26px 0;
+  list-style: none;
+}
+
+.priceCard li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  color: #cbd5e1;
+}
+
+.priceCard li svg {
+  color: #67e8f9;
+}
+
+.priceCard a {
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.68);
+}
+
+.faqList {
+  display: grid;
+  gap: 12px;
+  margin-top: 34px;
+}
+
+.faqItem {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 20px;
+}
+
+.faqItem summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.faqItem summary::-webkit-details-marker {
+  display: none;
+}
+
+.faqItem p {
+  padding: 0 24px 24px;
+  margin: 0;
+}
+
+.finalCta {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 42px;
+  margin-top: 74px;
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 80% 20%, rgba(34, 211, 238, 0.24), transparent 34%),
+    linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(2, 6, 23, 0.84));
+  box-shadow: 0 34px 130px rgba(0, 0, 0, 0.35);
+}
+
+.finalCta h2 {
+  max-width: 760px;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: min(1180px, calc(100% - 32px));
+  padding: 54px 0;
+  margin: 0 auto;
+  color: #94a3b8;
+}
+
+.footer div {
+  display: flex;
+  gap: 18px;
+}
+
+.footer a:hover {
+  color: #ffffff;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(34px) scale(0.985);
+  transition:
+    opacity 800ms ease,
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.revealVisible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -180;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(34px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 1080px) {
+  .hero {
+    grid-template-columns: 1fr;
+    padding-top: 44px;
+  }
+
+  .heroCopy {
+    max-width: 860px;
+  }
+
+  .featureGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .logoRail,
+  .stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 820px) {
+  .navLinks {
+    display: none;
+  }
+
+  .navActions {
+    gap: 12px;
+  }
+
+  .hero {
+    min-height: auto;
+  }
+
+  .hero h1 {
+    font-size: 46px;
+  }
+
+  .graph {
+    min-height: 390px;
+  }
+
+  .whyGrid,
+  .testimonialGrid,
+  .pricingGrid,
+  .featureGrid,
+  .stats,
+  .logoRail {
+    grid-template-columns: 1fr;
+  }
+
+  .priceFeatured {
+    transform: none;
+  }
+
+  .finalCta,
+  .footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 540px) {
+  .nav {
+    width: calc(100% - 20px);
+  }
+
+  .navActions a:first-child {
+    display: none;
+  }
+
+  .hero,
+  .trusted,
+  .why,
+  .showcase,
+  .features,
+  .stats,
+  .testimonials,
+  .pricing,
+  .faq,
+  .finalCta,
+  .footer {
+    width: calc(100% - 24px);
+  }
+
+  .hero h1 {
+    font-size: 40px;
+  }
+
+  .hero p {
+    font-size: 16px;
+  }
+
+  .heroStats {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+
+  .graphShell {
+    border-radius: 22px;
+  }
+
+  .graph {
+    min-height: 330px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page *::before,
+  .page *::after {
+    scroll-behavior: auto;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

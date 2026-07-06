@@ -3,8 +3,10 @@
 import { FormEvent, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ArrowRight, ChevronLeft, Fingerprint, Orbit } from 'lucide-react';
 import PasswordInput from '../../components/form/PasswordInput';
 import { login } from '../../services/auth.api';
+import styles from '../auth.module.css';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,53 +33,125 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#0B1220] px-6 text-white">
-      <form
-        className="w-full max-w-md rounded-xl border border-slate-800 bg-slate-950 p-6"
-        onSubmit={handleSubmit}
-      >
-        <h1 className="text-2xl font-bold">Login</h1>
-
-        {error ? (
-          <div className="mt-5 whitespace-pre-line rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
-            {error}
-          </div>
-        ) : null}
-
-        <label className="mt-6 block text-sm text-slate-300">
-          <span className="mb-2 block text-slate-400">Email or Phone</span>
-          <input
-            className="input"
-            value={identifier}
-            onChange={(event) => setIdentifier(event.target.value)}
-            required
-          />
-        </label>
-
-        <label className="mt-4 block text-sm text-slate-300">
-          <span className="mb-2 block text-slate-400">Password</span>
-          <PasswordInput
-            className="input"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-          />
-        </label>
-
-        <button
-          className="mt-6 w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold hover:bg-blue-500 disabled:opacity-60"
-          disabled={loading}
-        >
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-
-        <Link
-          className="mt-4 block text-center text-sm text-slate-400 hover:text-white"
-          href="/"
-        >
-          Back
+    <main className={styles.authPage}>
+      <nav className={styles.authNav}>
+        <Link className={styles.brand} href="/">
+          <span className={styles.logoMark}>
+            <Orbit size={18} />
+          </span>
+          BondGrid
         </Link>
-      </form>
+        <Link className={styles.backLink} href="/">
+          <ChevronLeft size={16} />
+          Landing
+        </Link>
+      </nav>
+
+      <div className={styles.authShell}>
+        <section className={styles.storyPanel}>
+          <div className={styles.eyebrow}>
+            <Fingerprint size={16} />
+            Secure workspace access
+          </div>
+          <h1>Enter the graph where your organization remembers everything.</h1>
+          <p>
+            Sign in to manage people, relationships, events, roles, imports,
+            audit trails, and the living community network behind your team.
+          </p>
+          <div className={styles.metricGrid}>
+            <div className={styles.metric}>
+              <strong>RBAC</strong>
+              <span>role aware</span>
+            </div>
+            <div className={styles.metric}>
+              <strong>Audit</strong>
+              <span>tracked</span>
+            </div>
+            <div className={styles.metric}>
+              <strong>Graph</strong>
+              <span>ready</span>
+            </div>
+          </div>
+          <MiniGraph />
+        </section>
+
+        <form className={styles.formCard} onSubmit={handleSubmit}>
+          <div className={styles.formHeader}>
+            <div>
+              <h1>Welcome back</h1>
+              <p>Continue into your BondGrid organization workspace.</p>
+            </div>
+          </div>
+
+          {error ? <div className={styles.alert}>{error}</div> : null}
+
+          <div className={styles.fieldStack}>
+            <label className={styles.field}>
+              <span>Email or Phone</span>
+              <input
+                className={styles.input}
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+                autoComplete="username"
+                required
+              />
+            </label>
+
+            <label className={styles.field}>
+              <span>Password</span>
+              <PasswordInput
+                className={styles.input}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                autoComplete="current-password"
+                required
+              />
+            </label>
+          </div>
+
+          <button
+            className={`${styles.primaryButton} ${styles.fullButton}`}
+            disabled={loading}
+          >
+            {loading ? 'Logging in...' : 'Login'}
+            <ArrowRight size={18} />
+          </button>
+
+          <p className={styles.formFooter}>
+            Starting fresh? <Link href="/admin-signup">Create admin account</Link>
+          </p>
+        </form>
+      </div>
     </main>
+  );
+}
+
+function MiniGraph() {
+  return (
+    <svg className={styles.miniGraph} viewBox="0 0 620 360" aria-hidden="true">
+      <path className={styles.graphLine} d="M80 250 C160 110, 260 120, 350 210 S500 300, 560 110" />
+      <path className={styles.graphLine} d="M115 145 C240 50, 350 80, 492 206" />
+      <path className={styles.graphLine} d="M160 286 C260 220, 340 270, 455 128" />
+      {[
+        [80, 250],
+        [115, 145],
+        [190, 98],
+        [282, 142],
+        [350, 210],
+        [455, 128],
+        [492, 206],
+        [560, 110],
+        [160, 286],
+      ].map(([cx, cy], index) => (
+        <circle
+          key={`${cx}-${cy}`}
+          className={styles.graphNode}
+          cx={cx}
+          cy={cy}
+          r={index % 3 === 0 ? 8 : 6}
+          style={{ animationDelay: `${index * 120}ms` }}
+        />
+      ))}
+    </svg>
   );
 }

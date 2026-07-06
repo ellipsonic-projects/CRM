@@ -12,9 +12,27 @@ export interface AuthUser {
   phone: string;
 }
 
+export interface User {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: Role;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LoginInput {
   identifier: string;
   password: string;
+}
+
+export interface CreateUserInput {
+  fullName: string;
+  email: string;
+  phone: string;
+  password: string;
+  role: Role;
 }
 
 export interface AdminSignupInput {
@@ -123,6 +141,27 @@ export async function adminSignup(data: AdminSignupInput): Promise<AuthUser> {
 
 export async function getCurrentUser(): Promise<AuthUser> {
   return request<AuthUser>('/api/v1/auth/me');
+}
+
+export async function getUsers(): Promise<User[]> {
+  return request<User[]>('/api/v1/auth/users');
+}
+
+export async function createUser(data: CreateUserInput): Promise<User> {
+  return request<User>('/api/v1/auth/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateUserRole(
+  userId: string,
+  role: Role,
+): Promise<User> {
+  return request<User>(`/api/v1/auth/users/${userId}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  });
 }
 
 export async function logout(): Promise<void> {

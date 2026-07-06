@@ -3,6 +3,12 @@
 import { FormEvent, ReactNode, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {
+  ArrowRight,
+  ChevronLeft,
+  Orbit,
+  ShieldCheck,
+} from 'lucide-react';
 import PasswordInput from '../../components/form/PasswordInput';
 import { adminSignup, AdminSignupInput } from '../../services/auth.api';
 import {
@@ -11,6 +17,7 @@ import {
   PASSWORD_MIN_LENGTH,
   validateCreatedPassword,
 } from '../../utils/password';
+import styles from '../auth.module.css';
 
 type OrganizationType = AdminSignupInput['organization']['organizationType'];
 
@@ -152,235 +159,293 @@ export default function AdminSignupPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#0B1220] px-6 py-10 text-white">
-      <form
-        className="mx-auto w-full max-w-3xl rounded-xl border border-slate-800 bg-slate-950 p-6"
-        onSubmit={handleSubmit}
-      >
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Admin Signup</h1>
-            <p className="mt-1 text-sm text-slate-400">Step {step} of 4</p>
+    <main className={styles.authPage}>
+      <nav className={styles.authNav}>
+        <Link className={styles.brand} href="/">
+          <span className={styles.logoMark}>
+            <Orbit size={18} />
+          </span>
+          BondGrid
+        </Link>
+        <Link className={styles.backLink} href="/">
+          <ChevronLeft size={16} />
+          Landing
+        </Link>
+      </nav>
+
+      <div className={`${styles.authShell} ${styles.signupShell}`}>
+        <section className={styles.storyPanel}>
+          <div className={styles.eyebrow}>
+            <ShieldCheck size={16} />
+            Organization launch sequence
+          </div>
+          <h1>Create the command center for your community graph.</h1>
+          <p>
+            Set up the first administrator, define the organization boundary,
+            and enter a workspace built for governed relationship data.
+          </p>
+          <div className={styles.metricGrid}>
+            <div className={styles.metric}>
+              <strong>01</strong>
+              <span>admin</span>
+            </div>
+            <div className={styles.metric}>
+              <strong>02</strong>
+              <span>org setup</span>
+            </div>
+            <div className={styles.metric}>
+              <strong>03</strong>
+              <span>review</span>
+            </div>
+          </div>
+          <MiniGraph />
+        </section>
+
+        <form
+          className={`${styles.formCard} ${styles.wideFormCard}`}
+          onSubmit={handleSubmit}
+        >
+          <div className={styles.formHeader}>
+            <div>
+              <h1>Admin Signup</h1>
+              <p>Build your BondGrid tenant in four focused steps.</p>
+            </div>
+            <span className={styles.stepBadge}>Step {step} of 4</span>
           </div>
 
-          <Link className="text-sm text-slate-400 hover:text-white" href="/">
-            Back
-          </Link>
-        </div>
-
-        {error ? (
-          <div className="mt-5 whitespace-pre-line rounded-xl border border-red-900 bg-red-950/40 p-3 text-sm text-red-200">
-            {error}
+          <div className={styles.stepper} aria-hidden="true">
+            {[1, 2, 3, 4].map((item) => (
+              <span
+                key={item}
+                className={`${styles.stepDot} ${
+                  item <= step ? styles.stepDotActive : ''
+                }`}
+              />
+            ))}
           </div>
-        ) : null}
 
-        <div className="mt-8">
-          {step === 1 ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Full Name">
-                <input
-                  className="input"
-                  value={form.fullName}
-                  onChange={(event) =>
-                    setForm({ ...form, fullName: event.target.value })
-                  }
-                  required
-                />
-              </Field>
+          {error ? <div className={styles.alert}>{error}</div> : null}
 
-              <Field label="Email">
-                <input
-                  className="input"
-                  type="email"
-                  value={form.email}
-                  onChange={(event) =>
-                    setForm({ ...form, email: event.target.value })
-                  }
-                  required
-                />
-              </Field>
+          <div className={styles.signupContent}>
+            {step === 1 ? (
+              <div className={styles.fieldGrid}>
+                <Field label="Full Name">
+                  <input
+                    className={styles.input}
+                    value={form.fullName}
+                    onChange={(event) =>
+                      setForm({ ...form, fullName: event.target.value })
+                    }
+                    autoComplete="name"
+                    required
+                  />
+                </Field>
 
-              <Field label="Phone">
-                <input
-                  className="input"
-                  value={form.phone}
-                  onChange={(event) =>
-                    setForm({ ...form, phone: event.target.value })
-                  }
-                  required
-                />
-              </Field>
+                <Field label="Email">
+                  <input
+                    className={styles.input}
+                    type="email"
+                    value={form.email}
+                    onChange={(event) =>
+                      setForm({ ...form, email: event.target.value })
+                    }
+                    autoComplete="email"
+                    required
+                  />
+                </Field>
 
-              <Field label="Password">
-                <PasswordInput
-                  className="input"
-                  value={form.password}
-                  minLength={PASSWORD_MIN_LENGTH}
-                  maxLength={PASSWORD_MAX_LENGTH}
-                  autoComplete="new-password"
-                  onChange={(event) =>
-                    setForm({ ...form, password: event.target.value })
-                  }
-                  required
-                />
-                <p className="mt-2 text-xs text-slate-500">
-                  {getPasswordPolicyMessage()} Longer passphrases are welcome.
+                <Field label="Phone">
+                  <input
+                    className={styles.input}
+                    value={form.phone}
+                    onChange={(event) =>
+                      setForm({ ...form, phone: event.target.value })
+                    }
+                    autoComplete="tel"
+                    required
+                  />
+                </Field>
+
+                <Field label="Password">
+                  <PasswordInput
+                    className={styles.input}
+                    value={form.password}
+                    minLength={PASSWORD_MIN_LENGTH}
+                    maxLength={PASSWORD_MAX_LENGTH}
+                    autoComplete="new-password"
+                    onChange={(event) =>
+                      setForm({ ...form, password: event.target.value })
+                    }
+                    required
+                  />
+                  <p className={styles.hint}>
+                    {getPasswordPolicyMessage()} Longer passphrases are welcome.
+                  </p>
+                </Field>
+
+                <Field label="Confirm Password">
+                  <PasswordInput
+                    className={styles.input}
+                    value={form.confirmPassword}
+                    minLength={PASSWORD_MIN_LENGTH}
+                    maxLength={PASSWORD_MAX_LENGTH}
+                    autoComplete="new-password"
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        confirmPassword: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {step === 2 ? (
+              <div className={styles.fieldGrid}>
+                <Field label="Organization Name">
+                  <input
+                    className={styles.input}
+                    value={form.organizationName}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        organizationName: event.target.value,
+                      })
+                    }
+                    required
+                  />
+                </Field>
+
+                <Field label="Organization Type">
+                  <select
+                    className={styles.input}
+                    value={form.organizationType}
+                    onChange={(event) =>
+                      setForm({
+                        ...form,
+                        organizationType: event.target.value as OrganizationType,
+                      })
+                    }
+                  >
+                    {organizationTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="State">
+                  <input
+                    className={styles.input}
+                    value={form.state}
+                    onChange={(event) =>
+                      setForm({ ...form, state: event.target.value })
+                    }
+                    required
+                  />
+                </Field>
+
+                <Field label="City">
+                  <input
+                    className={styles.input}
+                    value={form.city}
+                    onChange={(event) =>
+                      setForm({ ...form, city: event.target.value })
+                    }
+                    required
+                  />
+                </Field>
+
+                <Field label="Area">
+                  <input
+                    className={styles.input}
+                    value={form.area}
+                    onChange={(event) =>
+                      setForm({ ...form, area: event.target.value })
+                    }
+                  />
+                </Field>
+
+                <Field label="Logo URL">
+                  <input
+                    className={styles.input}
+                    value={form.logo}
+                    onChange={(event) =>
+                      setForm({ ...form, logo: event.target.value })
+                    }
+                  />
+                </Field>
+              </div>
+            ) : null}
+
+            {step >= 3 ? (
+              <div>
+                <p className={styles.summaryText}>
+                  Review the administrator and organization details before
+                  creating the workspace.
                 </p>
-              </Field>
+                <div className={styles.summaryGrid}>
+                  <Summary title="Administrator">
+                    <SummaryRow label="Full Name" value={form.fullName} />
+                    <SummaryRow label="Email" value={form.email} />
+                    <SummaryRow label="Phone" value={form.phone} />
+                  </Summary>
 
-              <Field label="Confirm Password">
-                <PasswordInput
-                  className="input"
-                  value={form.confirmPassword}
-                  minLength={PASSWORD_MIN_LENGTH}
-                  maxLength={PASSWORD_MAX_LENGTH}
-                  autoComplete="new-password"
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      confirmPassword: event.target.value,
-                    })
-                  }
-                  required
-                />
-              </Field>
-            </div>
-          ) : null}
+                  <Summary title="Organization">
+                    <SummaryRow label="Name" value={form.organizationName} />
+                    <SummaryRow label="Type" value={form.organizationType} />
+                    <SummaryRow label="State" value={form.state} />
+                    <SummaryRow label="City" value={form.city} />
+                    <SummaryRow label="Area" value={form.area || 'Not added'} />
+                  </Summary>
+                </div>
+              </div>
+            ) : null}
+          </div>
 
-          {step === 2 ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field label="Organization Name">
-                <input
-                  className="input"
-                  value={form.organizationName}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      organizationName: event.target.value,
-                    })
-                  }
-                  required
-                />
-              </Field>
-
-              <Field label="Organization Type">
-                <select
-                  className="input"
-                  value={form.organizationType}
-                  onChange={(event) =>
-                    setForm({
-                      ...form,
-                      organizationType: event.target.value as OrganizationType,
-                    })
-                  }
-                >
-                  {organizationTypes.map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="State">
-                <input
-                  className="input"
-                  value={form.state}
-                  onChange={(event) =>
-                    setForm({ ...form, state: event.target.value })
-                  }
-                  required
-                />
-              </Field>
-
-              <Field label="City">
-                <input
-                  className="input"
-                  value={form.city}
-                  onChange={(event) =>
-                    setForm({ ...form, city: event.target.value })
-                  }
-                  required
-                />
-              </Field>
-
-              <Field label="Area">
-                <input
-                  className="input"
-                  value={form.area}
-                  onChange={(event) =>
-                    setForm({ ...form, area: event.target.value })
-                  }
-                />
-              </Field>
-
-              <Field label="Logo">
-                <input
-                  className="input"
-                  value={form.logo}
-                  onChange={(event) =>
-                    setForm({ ...form, logo: event.target.value })
-                  }
-                />
-              </Field>
-            </div>
-          ) : null}
-
-          {step >= 3 ? (
-            <div className="grid gap-5 md:grid-cols-2">
-              <Summary title="Administrator">
-                <SummaryRow label="Full Name" value={form.fullName} />
-                <SummaryRow label="Email" value={form.email} />
-                <SummaryRow label="Phone" value={form.phone} />
-              </Summary>
-
-              <Summary title="Organization">
-                <SummaryRow label="Name" value={form.organizationName} />
-                <SummaryRow label="Type" value={form.organizationType} />
-                <SummaryRow label="State" value={form.state} />
-                <SummaryRow label="City" value={form.city} />
-                <SummaryRow label="Area" value={form.area || 'Not added'} />
-              </Summary>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="mt-8 flex justify-between">
-          <button
-            type="button"
-            className="rounded-xl border border-slate-700 px-4 py-2 text-slate-300 hover:bg-slate-900 disabled:opacity-40"
-            disabled={step === 1 || loading}
-            onClick={() => setStep((current) => Math.max(current - 1, 1))}
-          >
-            Back
-          </button>
-
-          {step < 4 ? (
+          <div className={styles.buttonRow}>
             <button
               type="button"
-              className="rounded-xl bg-blue-600 px-4 py-2 font-medium hover:bg-blue-500"
-              onClick={goNext}
+              className={styles.secondaryButton}
+              disabled={step === 1 || loading}
+              onClick={() => setStep((current) => Math.max(current - 1, 1))}
             >
-              Continue
+              Back
             </button>
-          ) : (
-            <button
-              className="rounded-xl bg-blue-600 px-4 py-2 font-medium hover:bg-blue-500 disabled:opacity-60"
-              disabled={loading}
-            >
-              {loading ? 'Creating...' : 'Create Organization'}
-            </button>
-          )}
-        </div>
-      </form>
+
+            {step < 4 ? (
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={goNext}
+              >
+                Continue
+                <ArrowRight size={18} />
+              </button>
+            ) : (
+              <button className={styles.primaryButton} disabled={loading}>
+                {loading ? 'Creating...' : 'Create Organization'}
+                <ArrowRight size={18} />
+              </button>
+            )}
+          </div>
+
+          <p className={styles.formFooter}>
+            Already have access? <Link href="/login">Login</Link>
+          </p>
+        </form>
+      </div>
     </main>
   );
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="block text-sm text-slate-300">
-      <span className="mb-2 block text-slate-400">{label}</span>
+    <label className={styles.field}>
+      <span>{label}</span>
       {children}
     </label>
   );
@@ -388,20 +453,48 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 function Summary({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-slate-800 bg-slate-900 p-4">
-      <h2 className="font-semibold">{title}</h2>
-      <dl className="mt-4 space-y-3">{children}</dl>
+    <section className={styles.summaryCard}>
+      <h2>{title}</h2>
+      <dl>{children}</dl>
     </section>
   );
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-xs uppercase tracking-widest text-slate-500">
-        {label}
-      </dt>
-      <dd className="mt-1 text-sm text-slate-200">{value}</dd>
+    <div className={styles.summaryRow}>
+      <dt>{label}</dt>
+      <dd>{value}</dd>
     </div>
+  );
+}
+
+function MiniGraph() {
+  return (
+    <svg className={styles.miniGraph} viewBox="0 0 620 360" aria-hidden="true">
+      <path className={styles.graphLine} d="M78 248 C180 82, 290 138, 390 96 S504 190, 562 112" />
+      <path className={styles.graphLine} d="M130 128 C212 252, 356 244, 490 205" />
+      <path className={styles.graphLine} d="M160 300 C250 184, 342 290, 452 126" />
+      {[
+        [78, 248],
+        [130, 128],
+        [212, 252],
+        [290, 138],
+        [356, 244],
+        [390, 96],
+        [452, 126],
+        [490, 205],
+        [562, 112],
+      ].map(([cx, cy], index) => (
+        <circle
+          key={`${cx}-${cy}`}
+          className={styles.graphNode}
+          cx={cx}
+          cy={cy}
+          r={index % 3 === 0 ? 8 : 6}
+          style={{ animationDelay: `${index * 130}ms` }}
+        />
+      ))}
+    </svg>
   );
 }

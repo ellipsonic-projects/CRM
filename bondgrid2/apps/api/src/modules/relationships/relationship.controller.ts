@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 
+import { recordAudit } from '../audit';
 import { RelationshipServiceError } from './relationship.errors';
 import {
   createRelationshipSchema,
@@ -52,6 +53,16 @@ export class RelationshipController {
         body,
         req.user.userId,
       );
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'CREATE_RELATIONSHIP',
+        entity: 'Relationship',
+        entityId: relationship.id,
+        entityName: relationship.displayLabel,
+        summary: `Created ${relationship.displayLabel} relationship.`,
+      });
 
       res.status(201).json({
         success: true,
@@ -133,6 +144,16 @@ export class RelationshipController {
         });
         return;
       }
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'UPDATE_RELATIONSHIP',
+        entity: 'Relationship',
+        entityId: relationship.id,
+        entityName: relationship.displayLabel,
+        summary: `Updated ${relationship.displayLabel} relationship.`,
+      });
 
       res.status(200).json({
         success: true,
@@ -281,6 +302,15 @@ export class RelationshipController {
         });
         return;
       }
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'DELETE_RELATIONSHIP',
+        entity: 'Relationship',
+        entityId: id,
+        summary: `Deleted relationship ${id}.`,
+      });
 
       res.status(204).send();
     } catch (error) {

@@ -50,7 +50,7 @@ export interface CreatePersonRequest {
   hasLogin?: boolean;
 }
 
-export interface UpdatePersonRequest extends Partial<CreatePersonRequest> {}
+export type UpdatePersonRequest = Partial<CreatePersonRequest>;
 
 export interface ListPeopleParams {
   organizationId: string;

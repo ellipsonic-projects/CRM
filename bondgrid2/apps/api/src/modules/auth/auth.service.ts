@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
-import { AdminSignupDto, LoginDto } from './auth.schema';
+import { AdminSignupDto, CreateUserDto, LoginDto, UpdateUserRoleDto } from './auth.schema';
 import { AuthRepository } from './auth.repository';
-import { AuthSession, AuthUser, Role } from './auth.types';
+import { AuthSession, AuthUser, Role, User } from './auth.types';
 
 interface JwtPayload {
   userId: string;
@@ -56,6 +56,26 @@ export class AuthService {
       token: this.signToken(user),
       user,
     };
+  }
+
+  async listUsers(organizationId: string): Promise<User[]> {
+    return this.repository.findUsersByOrganization(organizationId);
+  }
+
+  async createUser(
+    organizationId: string,
+    data: CreateUserDto,
+  ): Promise<User | null> {
+    const passwordHash = await bcrypt.hash(data.password, 12);
+    return this.repository.createUser(organizationId, data, passwordHash);
+  }
+
+  async updateUserRole(
+    organizationId: string,
+    userId: string,
+    data: UpdateUserRoleDto,
+  ): Promise<User | null> {
+    return this.repository.updateUserRole(organizationId, userId, data);
   }
 
   async getSession(payload: JwtPayload): Promise<AuthUser | null> {

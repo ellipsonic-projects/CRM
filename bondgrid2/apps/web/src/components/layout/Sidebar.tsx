@@ -5,21 +5,21 @@ import {
   Users,
   Network,
   CalendarDays,
-  Upload,
   ClipboardList,
   Settings,
   ChevronRight,
 } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Organization } from '../../services/organizations.api';
 
 const navigation = [
-  { name: 'Dashboard', icon: LayoutDashboard, active: false },
-  { name: 'People', icon: Users, active: false },
-  { name: 'Graph', icon: Network, active: true },
-  { name: 'Events', icon: CalendarDays, active: false },
-  { name: 'Import', icon: Upload, active: false },
-  { name: 'Audit Log', icon: ClipboardList, active: false },
-  { name: 'Settings', icon: Settings, active: false },
+  { name: 'Dashboard', icon: LayoutDashboard, href: '/app/dashboard' },
+  { name: 'People', icon: Users, href: '/app/people' },
+  { name: 'Graph', icon: Network, href: '/app/network' },
+  { name: 'Events', icon: CalendarDays, href: '/app/events' },
+  { name: 'Audit Log', icon: ClipboardList, href: '/app/audit-log' },
+  { name: 'Settings', icon: Settings, href: '/app/settings' },
 ];
 
 interface SidebarProps {
@@ -27,6 +27,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ organization }: SidebarProps) {
+  const pathname = usePathname();
+
   return (
     <aside className="w-72 border-r border-slate-800 bg-slate-950 flex flex-col">
       {/* Organization */}
@@ -58,20 +60,30 @@ export default function Sidebar({ organization }: SidebarProps) {
         <div className="space-y-2">
           {navigation.map((item) => {
             const Icon = item.icon;
-
-            return (
-              <button
-                key={item.name}
-                className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 transition
+            const active =
+              item.href !== undefined &&
+              (pathname === item.href || pathname.startsWith(`${item.href}/`));
+            const className = `flex w-full items-center gap-3 rounded-xl px-4 py-3 transition
                 ${
-                  item.active
+                  active
                     ? 'bg-blue-600 text-white'
                     : 'text-slate-300 hover:bg-slate-900'
-                }`}
-              >
+                }`;
+
+            if (!item.href) {
+              return (
+                <button key={item.name} className={className} type="button">
+                  <Icon size={20} />
+                  {item.name}
+                </button>
+              );
+            }
+
+            return (
+              <Link key={item.name} href={item.href} className={className}>
                 <Icon size={20} />
                 {item.name}
-              </button>
+              </Link>
             );
           })}
         </div>

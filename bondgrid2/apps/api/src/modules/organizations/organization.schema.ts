@@ -46,4 +46,7 @@ export const createOrganizationSchema = z.object({
     .optional(),
 });
 
+export const updateOrganizationSchema = createOrganizationSchema.partial();
+
 export type CreateOrganizationDto = z.infer<typeof createOrganizationSchema>;
+export type UpdateOrganizationDto = z.infer<typeof updateOrganizationSchema>;

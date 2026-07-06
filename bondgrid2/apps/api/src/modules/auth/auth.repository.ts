@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { getSession } from '../../database/neo4j';
-import { AdminSignupDto } from './auth.schema';
+import { AdminSignupDto, CreateUserDto, UpdateUserRoleDto } from './auth.schema';
 import { AuthUser, Role, User } from './auth.types';
 
 interface CreateAdminInput {
@@ -18,6 +18,29 @@ const removeUndefined = <T extends object>(value: T): T =>
   ) as T;
 
 export class AuthRepository {
+  async findUsersByOrganization(organizationId: string): Promise<User[]> {
+    const session = getSession();
+
+    try {
+      const result = await session.executeRead((transaction) =>
+        transaction.run(
+          `
+          MATCH (:Organization {id: $organizationId})-[:HAS_USER]->(user:User)
+          RETURN user
+          ORDER BY user.fullName ASC
+          `,
+          { organizationId },
+        ),
+      );
+
+      return result.records.map(
+        (record) => record.get('user').properties as User,
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
   async findUserByEmailOrPhone(identifier: string): Promise<StoredUser | null> {
     const session = getSession();
 
@@ -157,6 +180,90 @@ export class AuthRepository {
         email: createdUser.email,
         phone: createdUser.phone,
       };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async createUser(
+    organizationId: string,
+    data: CreateUserDto,
+    passwordHash: string,
+  ): Promise<User | null> {
+    const session = getSession();
+    const now = new Date().toISOString();
+    const user: User = {
+      id: randomUUID(),
+      fullName: data.fullName,
+      email: data.email.toLowerCase(),
+      phone: data.phone,
+      passwordHash,
+      role: data.role,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      const result = await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (organization:Organization {id: $organizationId})
+          OPTIONAL MATCH (existingUser:User)
+          WHERE toLower(existingUser.email) = toLower($email)
+             OR existingUser.phone = $phone
+          WITH organization, count(existingUser) AS existingUsers
+          WHERE existingUsers = 0
+          CREATE (user:User)
+          SET user += $user
+          CREATE (organization)-[:HAS_USER]->(user)
+          RETURN user
+          `,
+          {
+            organizationId,
+            email: user.email,
+            phone: user.phone,
+            user,
+          },
+        ),
+      );
+
+      const record = result.records[0];
+
+      return record ? (record.get('user').properties as User) : null;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async updateUserRole(
+    organizationId: string,
+    userId: string,
+    data: UpdateUserRoleDto,
+  ): Promise<User | null> {
+    const session = getSession();
+
+    try {
+      const result = await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (:Organization {id: $organizationId})-[:HAS_USER]->(user:User {id: $userId})
+          SET user.role = $role,
+              user.updatedAt = $updatedAt
+          RETURN user
+          LIMIT 1
+          `,
+          {
+            organizationId,
+            userId,
+            role: data.role,
+            updatedAt: new Date().toISOString(),
+          },
+        ),
+      );
+
+      const record = result.records[0];
+
+      return record ? (record.get('user').properties as User) : null;
     } finally {
       await session.close();
     }
