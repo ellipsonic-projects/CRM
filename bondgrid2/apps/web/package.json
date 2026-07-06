@@ -4,6 +4,16 @@
   "private": true,
   "nx": {
     "targets": {
+      "build": {
+        "executor": "nx:run-commands",
+        "options": {
+          "cwd": "apps/web",
+          "command": "next build",
+          "env": {
+            "NODE_ENV": "production"
+          }
+        }
+      },
       "dev": {
         "continuous": true,
         "executor": "nx:run-commands",
