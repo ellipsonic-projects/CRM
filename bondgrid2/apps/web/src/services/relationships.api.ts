@@ -8,6 +8,7 @@ export type CanonicalRelationshipType =
   | 'SPOUSE'
   | 'SIBLING'
   | 'FRIEND'
+  | 'CLOSE_FRIEND'
   | 'MENTOR'
   | 'TEACHER'
   | 'COLLEAGUE'
