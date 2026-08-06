@@ -279,7 +279,7 @@ export default function AdminSignupPage() {
                     required
                   />
                   <p className={styles.hint}>
-                    {getPasswordPolicyMessage()} Longer passphrases are welcome.
+                    {getPasswordPolicyMessage()}
                   </p>
                 </Field>
 

@@ -1,21 +1,17 @@
-export const PASSWORD_MIN_LENGTH = 15;
-export const PASSWORD_MAX_LENGTH = 128;
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 16;
 
 const GENERATED_PASSWORD_LENGTH = 20;
 const GENERATED_PASSWORD_ALPHABET =
   'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
 
 export function getPasswordPolicyMessage(): string {
-  return `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`;
+  return `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`;
 }
 
 export function validateCreatedPassword(password: string): string | undefined {
-  if (password.length < PASSWORD_MIN_LENGTH) {
+  if (password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
     return getPasswordPolicyMessage();
-  }
-
-  if (password.length > PASSWORD_MAX_LENGTH) {
-    return `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`;
   }
 
   return undefined;

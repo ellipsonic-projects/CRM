@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-const PASSWORD_MIN_LENGTH = 15;
-const PASSWORD_MAX_LENGTH = 128;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 16;
 
 export const roleSchema = z.enum(['ADMIN', 'VOLUNTEER', 'VIEWER']);
 
@@ -37,16 +37,16 @@ export const adminSignupSchema = z
       password: z
         .string({ error: 'Password is required.' })
         .min(PASSWORD_MIN_LENGTH, {
-          message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+          message: 'Password must be between 8 and 16 characters.',
         })
         .max(PASSWORD_MAX_LENGTH, {
-          message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+          message: 'Password must be between 8 and 16 characters.',
         }),
       confirmPassword: z
         .string({ error: 'Please confirm your password.' })
         .min(1, { message: 'Please confirm your password.' })
         .max(PASSWORD_MAX_LENGTH, {
-          message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+          message: 'Password must be between 8 and 16 characters.',
         }),
     }),
     organization: z.object({
@@ -116,10 +116,10 @@ export const createUserSchema = z.object({
   password: z
     .string({ error: 'Password is required.' })
     .min(PASSWORD_MIN_LENGTH, {
-      message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+      message: 'Password must be between 8 and 16 characters.',
     })
     .max(PASSWORD_MAX_LENGTH, {
-      message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+      message: 'Password must be between 8 and 16 characters.',
     }),
   role: roleSchema,
 });
