@@ -3,6 +3,7 @@ export const CANONICAL_RELATIONSHIP_IDS = [
   'SPOUSE',
   'SIBLING',
   'FRIEND',
+  'CLOSE_FRIEND',
   'MENTOR',
   'TEACHER',
   'COLLEAGUE',

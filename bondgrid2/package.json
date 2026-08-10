@@ -22,13 +22,13 @@
     "@nx/devkit": "23.0.1",
     "@nx/eslint": "23.0.1",
     "@nx/eslint-plugin": "23.0.1",
-    "@nx/express": "^23.0.1",
+    "@nx/express": "23.0.1",
     "@nx/jest": "23.0.1",
     "@nx/js": "23.0.1",
-    "@nx/next": "^23.0.1",
+    "@nx/next": "23.0.1",
     "@nx/node": "23.0.1",
     "@nx/playwright": "23.0.1",
-    "@nx/web": "^23.0.1",
+    "@nx/web": "23.0.1",
     "@nx/webpack": "23.0.1",
     "@playwright/test": "^1.37.0",
     "@svgr/webpack": "^8.0.1",
@@ -72,7 +72,8 @@
     "typescript-eslint": "^8.40.0",
     "webpack": "^5.101.3",
     "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.1"
+    "webpack-dev-server": "^5.2.1",
+    "@types/nodemailer": "^6.4.15"
   },
   "workspaces": [
     "packages/*",
@@ -104,6 +105,7 @@
     "tailwindcss": "^4.3.2",
     "uuid": "^14.0.1",
     "xlsx": "^0.18.5",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "nodemailer": "^6.9.14"
   }
 }

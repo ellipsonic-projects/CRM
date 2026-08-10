@@ -6,6 +6,9 @@ import {
   createUserSchema,
   loginSchema,
   updateUserRoleSchema,
+  forgotPasswordSchema,
+  verifyResetOtpSchema,
+  resetPasswordSchema,
 } from './auth.schema';
 import { AuthService } from './auth.service';
 import { User } from './auth.types';
@@ -273,5 +276,75 @@ export class AuthController {
 
     clearAuthCookie(res);
     res.status(204).send();
+  };
+
+  forgotPassword = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const body = forgotPasswordSchema.parse(req.body);
+      await this.authService.forgotPassword(body);
+
+      res.status(200).json({
+        success: true,
+        message: 'If an account exists with this email, a verification code has been sent.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verifyResetOtp = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const body = verifyResetOtpSchema.parse(req.body);
+      const result = await this.authService.verifyResetOtp(body);
+
+      if (!result) {
+        res.status(401).json({
+          success: false,
+          error: 'Invalid or expired OTP.',
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  resetPassword = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      const body = resetPasswordSchema.parse(req.body);
+      const success = await this.authService.resetPassword(body);
+
+      if (!success) {
+        res.status(400).json({
+          success: false,
+          error: 'Invalid or expired token.',
+        });
+        return;
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Password has been successfully reset.',
+      });
+    } catch (error) {
+      next(error);
+    }
   };
 }

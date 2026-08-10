@@ -60,6 +60,21 @@ export interface AdminSignupInput {
   };
 }
 
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface VerifyResetOtpInput {
+  email: string;
+  otp: string;
+}
+
+export interface ResetPasswordInput {
+  email: string;
+  token: string;
+  newPassword: string;
+}
+
 interface ApiSuccess<T> {
   success: true;
   data: T;
@@ -167,5 +182,28 @@ export async function updateUserRole(
 export async function logout(): Promise<void> {
   await request<void>('/api/v1/auth/logout', {
     method: 'POST',
+  });
+}
+
+export async function forgotPassword(data: ForgotPasswordInput): Promise<void> {
+  await request<void>('/api/v1/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function verifyResetOtp(
+  data: VerifyResetOtpInput,
+): Promise<{ token: string }> {
+  return request<{ token: string }>('/api/v1/auth/verify-reset-otp', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function resetPassword(data: ResetPasswordInput): Promise<void> {
+  await request<void>('/api/v1/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify(data),
   });
 }

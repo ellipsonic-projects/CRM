@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-const PASSWORD_MIN_LENGTH = 15;
-const PASSWORD_MAX_LENGTH = 128;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_MAX_LENGTH = 16;
 
 export const roleSchema = z.enum(['ADMIN', 'VOLUNTEER', 'VIEWER']);
 
@@ -37,16 +37,16 @@ export const adminSignupSchema = z
       password: z
         .string({ error: 'Password is required.' })
         .min(PASSWORD_MIN_LENGTH, {
-          message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+          message: 'Password must be between 8 and 16 characters.',
         })
         .max(PASSWORD_MAX_LENGTH, {
-          message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+          message: 'Password must be between 8 and 16 characters.',
         }),
       confirmPassword: z
         .string({ error: 'Please confirm your password.' })
         .min(1, { message: 'Please confirm your password.' })
         .max(PASSWORD_MAX_LENGTH, {
-          message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+          message: 'Password must be between 8 and 16 characters.',
         }),
     }),
     organization: z.object({
@@ -116,10 +116,10 @@ export const createUserSchema = z.object({
   password: z
     .string({ error: 'Password is required.' })
     .min(PASSWORD_MIN_LENGTH, {
-      message: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+      message: 'Password must be between 8 and 16 characters.',
     })
     .max(PASSWORD_MAX_LENGTH, {
-      message: `Password must be ${PASSWORD_MAX_LENGTH} characters or less.`,
+      message: 'Password must be between 8 and 16 characters.',
     }),
   role: roleSchema,
 });
@@ -132,3 +132,45 @@ export type LoginDto = z.infer<typeof loginSchema>;
 export type AdminSignupDto = z.infer<typeof adminSignupSchema>;
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type UpdateUserRoleDto = z.infer<typeof updateUserRoleSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string({ error: 'Please enter a valid email address.' })
+    .trim()
+    .email({ message: 'Please enter a valid email address.' }),
+});
+
+export const verifyResetOtpSchema = z.object({
+  email: z
+    .string({ error: 'Please enter a valid email address.' })
+    .trim()
+    .email({ message: 'Please enter a valid email address.' }),
+  otp: z
+    .string({ error: 'OTP is required.' })
+    .trim()
+    .length(6, { message: 'OTP must be exactly 6 digits.' })
+    .regex(/^\d+$/, { message: 'OTP must contain only digits.' }),
+});
+
+export const resetPasswordSchema = z.object({
+  email: z
+    .string({ error: 'Please enter a valid email address.' })
+    .trim()
+    .email({ message: 'Please enter a valid email address.' }),
+  token: z
+    .string({ error: 'Reset token is required.' })
+    .trim()
+    .min(1, { message: 'Reset token is required.' }),
+  newPassword: z
+    .string({ error: 'New password is required.' })
+    .min(PASSWORD_MIN_LENGTH, {
+      message: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
+    })
+    .max(PASSWORD_MAX_LENGTH, {
+      message: `Password must be between ${PASSWORD_MIN_LENGTH} and ${PASSWORD_MAX_LENGTH} characters.`,
+    }),
+});
+
+export type ForgotPasswordDto = z.infer<typeof forgotPasswordSchema>;
+export type VerifyResetOtpDto = z.infer<typeof verifyResetOtpSchema>;
+export type ResetPasswordDto = z.infer<typeof resetPasswordSchema>;

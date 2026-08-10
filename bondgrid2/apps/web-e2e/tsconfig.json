@@ -5,12 +5,14 @@
     "lib": ["esnext", "dom"],
     "outDir": "out-tsc/playwright",
     "sourceMap": false,
-    "types": ["node"]
+    "types": ["node"],
+    "module": "esnext",
+    "moduleResolution": "bundler"
   },
   "include": [
     "**/*.ts",
     "**/*.js",
-    "playwright.config.mts",
+    "playwright.config.js",
     "src/**/*.spec.ts",
     "src/**/*.spec.js",
     "src/**/*.test.ts",

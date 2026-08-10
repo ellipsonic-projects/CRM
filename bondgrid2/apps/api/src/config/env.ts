@@ -33,4 +33,12 @@ export const env = {
     password: process.env.NEO4J_PASSWORD ?? '',
     database: process.env.NEO4J_DATABASE ?? 'neo4j',
   },
+
+  smtp: {
+    host: required('SMTP_HOST'),
+    port: Number(process.env.SMTP_PORT ?? 587),
+    user: required('SMTP_USER'),
+    pass: required('SMTP_PASS'),
+    from: required('SMTP_FROM'),
+  },
 };

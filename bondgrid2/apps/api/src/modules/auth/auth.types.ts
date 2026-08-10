@@ -9,6 +9,12 @@ export interface User {
   role: Role;
   createdAt: string;
   updatedAt: string;
+  resetOtpHash?: string;
+  resetOtpExpiry?: string;
+  resetOtpAttempts?: number;
+  resetOtpLastSentAt?: string;
+  resetTokenHash?: string;
+  resetTokenExpiry?: string;
 }
 
 export interface AuthUser {

@@ -55,27 +55,27 @@ interface CanvasSize {
 
 type DragState =
   | {
-      type: 'pan';
-      pointerId: number;
-      x: number;
-      y: number;
-      view: ViewBox;
-    }
+    type: 'pan';
+    pointerId: number;
+    x: number;
+    y: number;
+    view: ViewBox;
+  }
   | {
-      type: 'node';
-      pointerId: number;
-      personId: string;
-      offset: GraphPoint;
-      moved: boolean;
-    }
+    type: 'node';
+    pointerId: number;
+    personId: string;
+    offset: GraphPoint;
+    moved: boolean;
+  }
   | {
-      type: 'relationship';
-      pointerId: number;
-      relationshipId: string;
-      startClient: GraphPoint;
-      startOffset: GraphPoint;
-      moved: boolean;
-    };
+    type: 'relationship';
+    pointerId: number;
+    relationshipId: string;
+    startClient: GraphPoint;
+    startOffset: GraphPoint;
+    moved: boolean;
+  };
 
 const NODE_RADIUS = 34;
 const EDGE_LABEL_OFFSET = 10;
@@ -538,6 +538,13 @@ export default function GraphCanvas({
 
     if (drag?.type === 'node') {
       setDraggingNodeId(undefined);
+
+      if (!drag.moved) {
+        const clickedNode = nodeById.get(drag.personId);
+        if (clickedNode) {
+          onSelectPerson(clickedNode.person);
+        }
+      }
     }
 
     if (drag?.type === 'relationship') {
@@ -748,9 +755,8 @@ export default function GraphCanvas({
           />
 
           <g
-            transform={`translate(${canvasSize.width / 2 + view.x} ${
-              canvasSize.height / 2 + view.y
-            }) scale(${view.scale})`}
+            transform={`translate(${canvasSize.width / 2 + view.x} ${canvasSize.height / 2 + view.y
+              }) scale(${view.scale})`}
           >
             {relationships.map((relationship, index) => {
               const source = nodeById.get(relationship.sourceId);
@@ -808,11 +814,10 @@ export default function GraphCanvas({
                     stroke={isActive ? '#60a5fa' : '#64748b'}
                     strokeOpacity={isActive ? 0.95 : 0.62}
                     strokeWidth={isActive ? 3 : 1.7}
-                    markerEnd={`url(#${
-                      isActive
+                    markerEnd={`url(#${isActive
                         ? 'relationship-arrow-active'
                         : 'relationship-arrow'
-                    })`}
+                      })`}
                   />
                   <text
                     x={labelX}

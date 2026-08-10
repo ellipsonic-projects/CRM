@@ -97,6 +97,21 @@ export const relationshipRegistry = {
       supportsCustomLabel: true,
     },
   },
+  CLOSE_FRIEND: {
+    id: 'CLOSE_FRIEND',
+    label: 'Close Friend',
+    description: 'A symmetric close friendship relationship.',
+    directional: false,
+    symmetric: true,
+    filterLabel: 'Close Friend',
+    display: {
+      label: labels('Close Friend'),
+    },
+    validation: defaultValidation,
+    hooks: {
+      supportsCustomLabel: true,
+    },
+  },
   MENTOR: {
     id: 'MENTOR',
     label: 'Mentor',
@@ -419,6 +434,13 @@ export const relationshipSelectionOptions = [
     label: 'Friend',
     group: 'Social',
     canonicalId: 'FRIEND',
+    perspective: 'source',
+  },
+  {
+    id: 'close-friend',
+    label: 'Close Friend',
+    group: 'Social',
+    canonicalId: 'CLOSE_FRIEND',
     perspective: 'source',
   },
   {
