@@ -3,6 +3,7 @@
 import {
   MouseEvent,
   PointerEvent,
+  ReactNode,
   WheelEvent,
   useCallback,
   useEffect,
@@ -27,6 +28,7 @@ interface GraphCanvasProps {
   error?: string;
   relationships?: GraphRelationship[];
   selectedRelationshipId?: string;
+  headerExtra?: ReactNode;
   onSelectPerson: (person: Person) => void;
   onRetry: () => void;
 }
@@ -79,7 +81,7 @@ type DragState =
 
 const NODE_RADIUS = 34;
 const EDGE_LABEL_OFFSET = 10;
-const TOP_CHROME_OFFSET = 56;
+const TOP_CHROME_OFFSET = 0;
 const MIN_ZOOM = 0.35;
 const MAX_ZOOM = 2.4;
 const GRAPH_COLORS = [
@@ -294,6 +296,7 @@ export default function GraphCanvas({
   error,
   relationships: relationshipsProp,
   selectedRelationshipId,
+  headerExtra,
   onSelectPerson,
   onRetry,
 }: GraphCanvasProps) {
@@ -403,6 +406,11 @@ export default function GraphCanvas({
     });
   }, [relationships]);
 
+  const latestNodesRef = useRef(nodes);
+  latestNodesRef.current = nodes;
+  const latestViewRef = useRef(view);
+  latestViewRef.current = view;
+
   useEffect(() => {
     const svg = svgRef.current;
 
@@ -416,15 +424,23 @@ export default function GraphCanvas({
       const previousSize = previousCanvasSizeRef.current;
       previousCanvasSizeRef.current = nextSize;
 
-      setCanvasSize(nextSize);
+      setCanvasSize((current) => {
+        if (current.width === nextSize.width && current.height === nextSize.height) {
+          return current;
+        }
+        return nextSize;
+      });
+
+      const currentNodes = latestNodesRef.current;
+      const currentView = latestViewRef.current;
 
       if (
         previousSize.width > 0 &&
         previousSize.height > 0 &&
-        nodes.length > 0 &&
-        isGraphClipped(nodes, view, nextSize)
+        currentNodes.length > 0 &&
+        isGraphClipped(currentNodes, currentView, nextSize)
       ) {
-        setView(getFitView(nodes, nextSize));
+        setView(getFitView(currentNodes, nextSize));
       }
     };
 
@@ -433,7 +449,7 @@ export default function GraphCanvas({
     observer.observe(svg);
 
     return () => observer.disconnect();
-  }, [nodes, view]);
+  }, []);
 
   useEffect(() => {
     if (
@@ -661,26 +677,27 @@ export default function GraphCanvas({
 
   return (
     <main
-      className="relative flex flex-1 overflow-hidden bg-slate-900"
+      className="relative flex flex-col flex-1 h-full w-full overflow-hidden bg-slate-900"
       style={{
         backgroundImage:
           'radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)',
         backgroundSize: '28px 28px',
       }}
     >
-      <div className="absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between border-b border-slate-800 bg-slate-950/80 px-5 backdrop-blur">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950/80 px-5 backdrop-blur z-10 select-none">
         <h2 className="font-semibold text-slate-200">Community Graph</h2>
-        <div className="flex items-center gap-2">
-          <p className="mr-1 text-sm text-slate-500">{people.length} people</p>
+        <div className="flex items-center gap-3">
+          {headerExtra}
+          <p className="text-sm text-slate-500">{people.length} {people.length === 1 ? 'person' : 'people'}</p>
           <button
-            className="rounded-lg p-2 text-slate-300 hover:bg-slate-800"
+            className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 cursor-pointer"
             onClick={fitGraph}
             title="Fit graph"
           >
             <Maximize2 size={18} />
           </button>
           <button
-            className="rounded-lg p-2 text-slate-300 hover:bg-slate-800"
+            className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 cursor-pointer"
             onClick={() => setView({ x: 0, y: 0, scale: 1 })}
             title="Reset view"
           >
@@ -689,41 +706,42 @@ export default function GraphCanvas({
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex flex-1 items-center justify-center pt-14">
-          <p className="text-slate-400">Loading people...</p>
-        </div>
-      ) : error ? (
-        <div className="flex flex-1 items-center justify-center pt-14">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold">Could not load people</h2>
-            <p className="mt-3 max-w-md text-slate-400">{error}</p>
-            <button
-              className="mt-5 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-500"
-              onClick={onRetry}
-            >
-              Retry
-            </button>
+      <div className="flex-1 relative w-full h-full min-h-0 overflow-hidden">
+        {loading ? (
+          <div className="flex flex-1 h-full items-center justify-center">
+            <p className="text-slate-400">Loading people...</p>
           </div>
-        </div>
-      ) : people.length === 0 ? (
-        <div className="flex flex-1 items-center justify-center pt-14">
-          <div className="text-center">
-            <h2 className="text-3xl font-bold">No People Yet</h2>
-            <p className="mt-3 text-slate-400">
-              Create your first person to start the community graph.
-            </p>
+        ) : error ? (
+          <div className="flex flex-1 h-full items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold">Could not load people</h2>
+              <p className="mt-3 max-w-md text-slate-400">{error}</p>
+              <button
+                className="mt-5 rounded-xl bg-blue-600 px-4 py-2 hover:bg-blue-500 cursor-pointer"
+                onClick={onRetry}
+              >
+                Retry
+              </button>
+            </div>
           </div>
-        </div>
-      ) : (
-        <svg
-          ref={svgRef}
-          className="h-full w-full cursor-grab pt-14 active:cursor-grabbing"
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onWheel={handleWheel}
-        >
+        ) : people.length === 0 ? (
+          <div className="flex flex-1 h-full items-center justify-center">
+            <div className="text-center">
+              <h2 className="text-3xl font-bold">No People Yet</h2>
+              <p className="mt-3 text-slate-400">
+                Create your first person to start the community graph.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <svg
+            ref={svgRef}
+            className="h-full w-full cursor-grab active:cursor-grabbing"
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onWheel={handleWheel}
+          >
           <defs>
             <marker
               id="relationship-arrow"
@@ -911,6 +929,7 @@ export default function GraphCanvas({
           </g>
         </svg>
       )}
+      </div>
     </main>
   );
 }

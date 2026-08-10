@@ -42,8 +42,10 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "~30.0.0",
+    "@types/leaflet": "^1.9.22",
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^6.4.15",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@types/uuid": "^10.0.0",
@@ -72,8 +74,7 @@
     "typescript-eslint": "^8.40.0",
     "webpack": "^5.101.3",
     "webpack-cli": "^6.0.1",
-    "webpack-dev-server": "^5.2.1",
-    "@types/nodemailer": "^6.4.15"
+    "webpack-dev-server": "^5.2.1"
   },
   "workspaces": [
     "packages/*",
@@ -93,19 +94,21 @@
     "express": "^5.2.1",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.23.0",
     "morgan": "^1.11.0",
     "multer": "^2.2.0",
     "neo4j-driver": "^6.2.0",
     "next": "^16.2.10",
+    "nodemailer": "^6.9.14",
     "postcss": "^8.5.16",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-leaflet": "^5.0.0",
     "streamifier": "^0.1.1",
     "tailwindcss": "^4.3.2",
     "uuid": "^14.0.1",
     "xlsx": "^0.18.5",
-    "zod": "^4.4.3",
-    "nodemailer": "^6.9.14"
+    "zod": "^4.4.3"
   }
 }
