@@ -268,4 +268,123 @@ export class AuthRepository {
       await session.close();
     }
   }
+  
+  async findUserByEmail(email: string): Promise<StoredUser | null> {
+    const session = getSession();
+
+    try {
+      const result = await session.executeRead((transaction) =>
+        transaction.run(
+          `
+          MATCH (organization:Organization)-[:HAS_USER]->(user:User)
+          WHERE toLower(user.email) = toLower($email)
+          RETURN user, organization.id AS organizationId
+          LIMIT 1
+          `,
+          { email },
+        ),
+      );
+
+      const record = result.records[0];
+
+      if (!record) {
+        return null;
+      }
+
+      return {
+        ...(record.get('user').properties as User),
+        organizationId: record.get('organizationId') as string,
+      };
+    } finally {
+      await session.close();
+    }
+  }
+
+  async savePasswordResetOtp(
+    userId: string,
+    otpHash: string,
+    expiry: string,
+    lastSentAt: string,
+  ): Promise<void> {
+    const session = getSession();
+    try {
+      await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (user:User {id: $userId})
+          SET user.resetOtpHash = $otpHash,
+              user.resetOtpExpiry = $expiry,
+              user.resetOtpLastSentAt = $lastSentAt,
+              user.resetOtpAttempts = 0
+          `,
+          { userId, otpHash, expiry, lastSentAt },
+        ),
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  async incrementOtpAttempts(userId: string): Promise<void> {
+    const session = getSession();
+    try {
+      await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (user:User {id: $userId})
+          SET user.resetOtpAttempts = coalesce(user.resetOtpAttempts, 0) + 1
+          `,
+          { userId },
+        ),
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  async savePasswordResetToken(
+    userId: string,
+    tokenHash: string,
+    expiry: string,
+  ): Promise<void> {
+    const session = getSession();
+    try {
+      await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (user:User {id: $userId})
+          SET user.resetTokenHash = $tokenHash,
+              user.resetTokenExpiry = $expiry
+          REMOVE user.resetOtpHash, user.resetOtpExpiry, user.resetOtpAttempts, user.resetOtpLastSentAt
+          `,
+          { userId, tokenHash, expiry },
+        ),
+      );
+    } finally {
+      await session.close();
+    }
+  }
+
+  async updatePasswordAndClearResetData(
+    userId: string,
+    newPasswordHash: string,
+  ): Promise<void> {
+    const session = getSession();
+    try {
+      await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (user:User {id: $userId})
+          SET user.passwordHash = $newPasswordHash,
+              user.updatedAt = $updatedAt
+          REMOVE user.resetTokenHash, user.resetTokenExpiry, user.resetOtpHash, user.resetOtpExpiry, user.resetOtpAttempts, user.resetOtpLastSentAt
+          `,
+          { userId, newPasswordHash, updatedAt: new Date().toISOString() },
+        ),
+      );
+    } finally {
+      await session.close();
+    }
+  }
 }
+

@@ -12,5 +12,8 @@ router.get('/users', authenticate, controller.listUsers);
 router.post('/users', authenticate, controller.createUser);
 router.patch('/users/:id/role', authenticate, controller.updateUserRole);
 router.post('/logout', authenticate, controller.logout);
+router.post('/forgot-password', controller.forgotPassword);
+router.post('/verify-reset-otp', controller.verifyResetOtp);
+router.post('/reset-password', controller.resetPassword);
 
 export default router;

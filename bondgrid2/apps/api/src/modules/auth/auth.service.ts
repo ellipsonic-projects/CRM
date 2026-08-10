@@ -1,9 +1,11 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { env } from '../../config/env';
-import { AdminSignupDto, CreateUserDto, LoginDto, UpdateUserRoleDto } from './auth.schema';
+import { AdminSignupDto, CreateUserDto, LoginDto, UpdateUserRoleDto, ForgotPasswordDto, VerifyResetOtpDto, ResetPasswordDto } from './auth.schema';
 import { AuthRepository } from './auth.repository';
 import { AuthSession, AuthUser, Role, User } from './auth.types';
+import { EmailService } from '../email/email.service';
 
 interface JwtPayload {
   userId: string;
@@ -12,6 +14,7 @@ interface JwtPayload {
 }
 
 export class AuthService {
+  private readonly emailService = new EmailService();
   constructor(private readonly repository = new AuthRepository()) {}
 
   async login(data: LoginDto): Promise<AuthSession | null> {
@@ -76,6 +79,77 @@ export class AuthService {
     data: UpdateUserRoleDto,
   ): Promise<User | null> {
     return this.repository.updateUserRole(organizationId, userId, data);
+  }
+
+  async forgotPassword(data: ForgotPasswordDto): Promise<void> {
+    const user = await this.repository.findUserByEmail(data.email);
+    if (!user) return; // Do not reveal email existence
+
+    const now = new Date();
+    
+    // 60s cooldown check
+    if (user.resetOtpLastSentAt) {
+      const lastSentAt = new Date(user.resetOtpLastSentAt);
+      if (now.getTime() - lastSentAt.getTime() < 60000) {
+        return; 
+      }
+    }
+
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const otpHash = await bcrypt.hash(otp, 12);
+    const expiry = new Date(now.getTime() + 10 * 60000).toISOString();
+    const lastSentAt = now.toISOString();
+
+    await this.repository.savePasswordResetOtp(user.id, otpHash, expiry, lastSentAt);
+    await this.emailService.sendPasswordResetOtp(user.email, otp);
+  }
+
+  async verifyResetOtp(data: VerifyResetOtpDto): Promise<{ token: string } | null> {
+    const user = await this.repository.findUserByEmail(data.email);
+    if (!user || !user.resetOtpHash || !user.resetOtpExpiry) return null;
+
+    const attempts = user.resetOtpAttempts || 0;
+    if (attempts >= 5) {
+      return null;
+    }
+
+    await this.repository.incrementOtpAttempts(user.id);
+
+    const now = new Date();
+    const expiry = new Date(user.resetOtpExpiry);
+    if (now > expiry) {
+      return null;
+    }
+
+    const isValid = await bcrypt.compare(data.otp, user.resetOtpHash);
+    if (!isValid) return null;
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = await bcrypt.hash(token, 12);
+    const tokenExpiry = new Date(now.getTime() + 15 * 60000).toISOString();
+
+    await this.repository.savePasswordResetToken(user.id, tokenHash, tokenExpiry);
+
+    return { token };
+  }
+
+  async resetPassword(data: ResetPasswordDto): Promise<boolean> {
+    const user = await this.repository.findUserByEmail(data.email);
+    if (!user || !user.resetTokenHash || !user.resetTokenExpiry) return false;
+
+    const now = new Date();
+    const expiry = new Date(user.resetTokenExpiry);
+    if (now > expiry) {
+      return false;
+    }
+
+    const isValid = await bcrypt.compare(data.token, user.resetTokenHash);
+    if (!isValid) return false;
+
+    const newPasswordHash = await bcrypt.hash(data.newPassword, 12);
+    await this.repository.updatePasswordAndClearResetData(user.id, newPasswordHash);
+
+    return true;
   }
 
   async getSession(payload: JwtPayload): Promise<AuthUser | null> {

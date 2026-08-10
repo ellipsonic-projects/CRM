@@ -98,7 +98,15 @@ export default function LoginPage() {
             </label>
 
             <label className={styles.field}>
-              <span>Password</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <span style={{ marginBottom: 0 }}>Password</span>
+                <Link
+                  href="/forgot-password"
+                  style={{ color: '#67e8f9', fontSize: '13px', fontWeight: 600 }}
+                >
+                  Forgot Password?
+                </Link>
+              </div>
               <PasswordInput
                 className={styles.input}
                 value={password}
