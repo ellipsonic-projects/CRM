@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import AppHeader from '../../../components/layout/AppHeader';
 import Sidebar from '../../../components/layout/Sidebar';
 import GraphCanvas from '../../../components/layout/GraphCanvas';
+import MapCanvas from '../../../components/layout/MapCanvas';
 import PersonDrawer from '../../../components/layout/PersonDrawer';
 import GraphFiltersPanel from '../../../components/layout/GraphFiltersPanel';
 import AddPersonDialog, {
@@ -68,6 +69,7 @@ export default function NetworkPage() {
   const [selectedPersonId, setSelectedPersonId] = useState<string>();
   const [filters, setFilters] = useState<GraphFilterState>(emptyGraphFilters);
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [viewMode, setViewMode] = useState<'graph' | 'map'>('graph');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>();
@@ -428,15 +430,70 @@ export default function NetworkPage() {
           onClear={() => setFilters(emptyGraphFilters)}
         />
 
-        <GraphCanvas
-          people={filteredGraph.people}
-          selectedPersonId={selectedPersonId}
-          loading={loading}
-          error={error}
-          relationships={graphRelationships}
-          onSelectPerson={(person) => setSelectedPersonId(person.id)}
-          onRetry={() => void loadPeople()}
-        />
+        <div className="flex-1 flex flex-col h-full w-full min-w-0 bg-[#0B1220] overflow-hidden">
+          {viewMode === 'graph' ? (
+            <GraphCanvas
+              people={filteredGraph.people}
+              selectedPersonId={selectedPersonId}
+              loading={loading}
+              error={error}
+              relationships={graphRelationships}
+              headerExtra={
+                <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-0.5 rounded-lg shadow-lg">
+                  <button
+                    onClick={() => setViewMode('graph')}
+                    className="px-3 py-1 text-xs font-semibold rounded-md transition bg-blue-600 text-white shadow-md cursor-pointer"
+                  >
+                    Graph
+                  </button>
+                  <button
+                    onClick={() => setViewMode('map')}
+                    className="px-3 py-1 text-xs font-semibold rounded-md transition text-slate-400 hover:text-slate-200 cursor-pointer"
+                  >
+                    Map
+                  </button>
+                </div>
+              }
+              onSelectPerson={(person) => setSelectedPersonId(person.id)}
+              onRetry={() => void loadPeople()}
+            />
+          ) : (
+            <div className="flex-1 flex flex-col h-full w-full overflow-hidden">
+              <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-950/80 px-5 backdrop-blur select-none z-10">
+                <h2 className="font-semibold text-slate-200">Community Map</h2>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 p-0.5 rounded-lg shadow-lg">
+                    <button
+                      onClick={() => setViewMode('graph')}
+                      className="px-3 py-1 text-xs font-semibold rounded-md transition text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      Graph
+                    </button>
+                    <button
+                      onClick={() => setViewMode('map')}
+                      className="px-3 py-1 text-xs font-semibold rounded-md transition bg-blue-600 text-white shadow-md cursor-pointer"
+                    >
+                      Map
+                    </button>
+                  </div>
+                  <p className="text-sm text-slate-500">
+                    {filteredGraph.people.length} {filteredGraph.people.length === 1 ? 'person' : 'people'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex-1 relative w-full h-full min-h-0 overflow-hidden">
+                <MapCanvas
+                  people={filteredGraph.people}
+                  selectedPersonId={selectedPersonId}
+                  loading={loading}
+                  error={error}
+                  onSelectPerson={(personId) => setSelectedPersonId(personId)}
+                  onRetry={() => void loadPeople()}
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         <PersonDrawer
           person={selectedPerson}
