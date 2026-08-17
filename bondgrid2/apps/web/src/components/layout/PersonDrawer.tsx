@@ -9,6 +9,7 @@ import {
 } from '../../services/relationships.api';
 import AvatarUpload from '../form/AvatarUpload';
 import ConfirmationDialog from '../ui/ConfirmationDialog';
+import { getWhatsAppUrl } from '../../utils/whatsapp';
 
 interface PersonDrawerProps {
   person?: Person;
@@ -454,7 +455,7 @@ export default function PersonDrawer({
           </div>
 
           <dl className="mt-8 space-y-5">
-            <Detail label="Phone" value={person.phone} />
+            <Detail label="Phone" value={person.phone} isPhone />
             <Detail label="Email" value={person.email} isEmail />
             <Detail label="Gender" value={person.gender} />
             <Detail label="State" value={person.state} />
@@ -543,9 +544,30 @@ export default function PersonDrawer({
                         <p className="text-sm font-medium text-slate-100">
                           {relationship.displayLabel}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {relationship.relatedPerson.phone ?? 'No phone'}
-                        </p>
+                        {(() => {
+                          const phone = relationship.relatedPerson.phone;
+                          const whatsappUrl = getWhatsAppUrl(phone);
+                          if (phone && whatsappUrl) {
+                            return (
+                              <p className="mt-1 text-xs">
+                                <a
+                                  href={whatsappUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:underline"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  {phone}
+                                </a>
+                              </p>
+                            );
+                          }
+                          return (
+                            <p className="mt-1 text-xs text-slate-500">
+                              {phone ?? 'No phone'}
+                            </p>
+                          );
+                        })()}
                         <p className="mt-1 text-xs text-slate-500">
                           {[
                             relationship.relatedPerson.city,
@@ -781,11 +803,15 @@ function Detail({
   label,
   value,
   isEmail,
+  isPhone,
 }: {
   label: string;
   value?: string;
   isEmail?: boolean;
+  isPhone?: boolean;
 }) {
+  const whatsappUrl = isPhone ? getWhatsAppUrl(value) : null;
+
   return (
     <div>
       <dt className="text-xs uppercase tracking-widest text-slate-500">
@@ -796,6 +822,15 @@ function Detail({
           isEmail ? (
             <a
               href={`mailto:${value}`}
+              className="text-blue-400 hover:underline"
+            >
+              {value}
+            </a>
+          ) : isPhone && whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="text-blue-400 hover:underline"
             >
               {value}

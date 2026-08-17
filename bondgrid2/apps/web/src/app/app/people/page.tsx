@@ -11,6 +11,7 @@ import AddPersonDialog, {
   PersonFormState,
 } from '../../../components/layout/AddPersonDialog';
 import PeopleImportDialog from '../../../components/layout/PeopleImportDialog';
+import { getWhatsAppUrl } from '../../../utils/whatsapp';
 import {
   getCurrentUser,
   logout as logoutSession,
@@ -519,7 +520,23 @@ export default function PeoplePage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-slate-300">
-                          {person.phone || 'Not added'}
+                          {(() => {
+                            const whatsappUrl = getWhatsAppUrl(person.phone);
+                            if (person.phone && whatsappUrl) {
+                              return (
+                                <a
+                                  href={whatsappUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:underline"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  {person.phone}
+                                </a>
+                              );
+                            }
+                            return person.phone || 'Not added';
+                          })()}
                         </td>
                         <td className="px-4 py-3 text-slate-300">
                           {person.email ? (
