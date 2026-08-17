@@ -455,7 +455,7 @@ export default function PersonDrawer({
 
           <dl className="mt-8 space-y-5">
             <Detail label="Phone" value={person.phone} />
-            <Detail label="Email" value={person.email} />
+            <Detail label="Email" value={person.email} isEmail />
             <Detail label="Gender" value={person.gender} />
             <Detail label="State" value={person.state} />
             <Detail label="City" value={person.city} />
@@ -777,13 +777,36 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Detail({ label, value }: { label: string; value?: string }) {
+function Detail({
+  label,
+  value,
+  isEmail,
+}: {
+  label: string;
+  value?: string;
+  isEmail?: boolean;
+}) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-widest text-slate-500">
         {label}
       </dt>
-      <dd className="mt-1 text-sm text-slate-200">{value || 'Not added'}</dd>
+      <dd className="mt-1 text-sm text-slate-200">
+        {value ? (
+          isEmail ? (
+            <a
+              href={`mailto:${value}`}
+              className="text-blue-400 hover:underline"
+            >
+              {value}
+            </a>
+          ) : (
+            value
+          )
+        ) : (
+          'Not added'
+        )}
+      </dd>
     </div>
   );
 }

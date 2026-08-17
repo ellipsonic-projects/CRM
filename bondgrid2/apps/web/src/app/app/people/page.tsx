@@ -522,7 +522,17 @@ export default function PeoplePage() {
                           {person.phone || 'Not added'}
                         </td>
                         <td className="px-4 py-3 text-slate-300">
-                          {person.email || 'Not added'}
+                          {person.email ? (
+                            <a
+                              href={`mailto:${person.email}`}
+                              className="text-blue-400 hover:underline"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              {person.email}
+                            </a>
+                          ) : (
+                            'Not added'
+                          )}
                         </td>
                         <td className="px-4 py-3 text-slate-300">
                           {person.occupation || 'Not added'}
