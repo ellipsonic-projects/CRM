@@ -26,10 +26,16 @@ export default function VerifyOtpPage() {
   }, [router]);
 
   useEffect(() => {
-    if (countdown > 0) {
-      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
+    const timer =
+      countdown > 0
+        ? setTimeout(() => setCountdown(countdown - 1), 1000)
+        : undefined;
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, [countdown]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
