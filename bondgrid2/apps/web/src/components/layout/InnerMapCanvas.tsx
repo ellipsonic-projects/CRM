@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Tooltip, Popup, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Tooltip, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { Person } from '../../services/people.api';
 import { getCoordinates, Coordinate } from '../../utils/coordinates';
