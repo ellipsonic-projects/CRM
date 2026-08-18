@@ -39,6 +39,7 @@ export interface ImportPreviewRow {
   data: Partial<Record<PeopleTemplateHeader, string>>;
   person?: CreatePersonInput;
   errors: string[];
+  isExample?: boolean;
 }
 
 export interface RelationshipImportPreviewRow {
@@ -46,6 +47,7 @@ export interface RelationshipImportPreviewRow {
   data: Partial<Record<RelationshipTemplateHeader, string>>;
   relationship?: BulkRelationshipRow;
   errors: string[];
+  isExample?: boolean;
 }
 
 export interface RelationshipImportPreviewResult {
@@ -54,6 +56,7 @@ export interface RelationshipImportPreviewResult {
   validRows: number;
   invalidRows: number;
   skippedRows: number;
+  exampleRows: number;
 }
 
 export interface ImportPreviewResult {
@@ -62,6 +65,7 @@ export interface ImportPreviewResult {
   validRows: number;
   invalidRows: number;
   skippedRows: number;
+  exampleRows: number;
   relationships?: RelationshipImportPreviewResult;
 }
 
@@ -74,11 +78,129 @@ const phonePattern = /^[6-9]\d{9}$/;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const validGenders = new Set<Gender>(['male', 'female', 'other']);
 
-function normalizeHeader(value: string): PeopleTemplateHeader | undefined {
+export const TEMPLATE_EXAMPLE_MARKER_HEADER = '__templateExample';
+
+export const mockDetailsRows: Record<PeopleTemplateHeader, string>[] = [
+  {
+    personId: 'EXAMPLE001',
+    fullName: 'Example Person One',
+    phone: '9876500001',
+    email: 'example.one@example.com',
+    gender: 'male',
+    occupation: 'Software Engineer',
+    state: 'Karnataka',
+    city: 'Bengaluru',
+    area: 'Indiranagar',
+    notes: 'Example data - DO NOT IMPORT',
+    hasLogin: 'no',
+  },
+  {
+    personId: 'EXAMPLE002',
+    fullName: 'Example Person Two',
+    phone: '9876500002',
+    email: 'example.two@example.com',
+    gender: 'female',
+    occupation: 'Teacher',
+    state: 'Karnataka',
+    city: 'Bengaluru',
+    area: 'Koramangala',
+    notes: 'Example data - DO NOT IMPORT',
+    hasLogin: 'no',
+  },
+  {
+    personId: 'EXAMPLE003',
+    fullName: 'Example Person Three',
+    phone: '9876500003',
+    email: 'example.three@example.com',
+    gender: 'male',
+    occupation: 'Business Analyst',
+    state: 'Karnataka',
+    city: 'Mysuru',
+    area: 'Vijayanagar',
+    notes: 'Example data - DO NOT IMPORT',
+    hasLogin: 'no',
+  },
+];
+
+export const mockRelationshipsRows: Record<RelationshipTemplateHeader, string>[] = [
+  {
+    relationshipId: 'EXAMPLE_REL_001',
+    fromPersonId: 'EXAMPLE001',
+    toPersonId: 'EXAMPLE002',
+    relationshipType: 'FRIEND',
+  },
+  {
+    relationshipId: 'EXAMPLE_REL_002',
+    fromPersonId: 'EXAMPLE001',
+    toPersonId: 'EXAMPLE003',
+    relationshipType: 'COLLEAGUE',
+  },
+];
+
+const KNOWN_MOCK_PERSON_IDS = new Set(mockDetailsRows.map((r) => r.personId.toUpperCase()));
+const KNOWN_MOCK_RELATIONSHIP_IDS = new Set(
+  mockRelationshipsRows.map((r) => (r.relationshipId || '').toUpperCase()),
+);
+
+function isExamplePersonRow(
+  data: Partial<Record<PeopleTemplateHeader, string>>,
+  markerValue?: string,
+): boolean {
+  if (markerValue && parseBoolean(markerValue) === true) {
+    return true;
+  }
+  const pid = data.personId?.trim().toUpperCase() || '';
+  const notes = data.notes?.trim().toLowerCase() || '';
+  const email = data.email?.trim().toLowerCase() || '';
+
+  // Explicit combined checks to prevent accidental false positives on real user data
+  if (KNOWN_MOCK_PERSON_IDS.has(pid)) {
+    return true;
+  }
+  if (notes.includes('do not import') || notes.includes('example data')) {
+    return true;
+  }
+  if (email.endsWith('@example.com') && pid.startsWith('EXAMPLE')) {
+    return true;
+  }
+
+  return false;
+}
+
+function isExampleRelationshipRow(
+  data: Partial<Record<RelationshipTemplateHeader, string>>,
+  markerValue?: string,
+): boolean {
+  if (markerValue && parseBoolean(markerValue) === true) {
+    return true;
+  }
+  const relId = data.relationshipId?.trim().toUpperCase() || '';
+  const fromPid = data.fromPersonId?.trim().toUpperCase() || '';
+  const toPid = data.toPersonId?.trim().toUpperCase() || '';
+
+  if (KNOWN_MOCK_RELATIONSHIP_IDS.has(relId)) {
+    return true;
+  }
+  if (KNOWN_MOCK_PERSON_IDS.has(fromPid) || KNOWN_MOCK_PERSON_IDS.has(toPid)) {
+    return true;
+  }
+  if (relId.startsWith('EXAMPLE_REL_') || fromPid.startsWith('EXAMPLE') || toPid.startsWith('EXAMPLE')) {
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeHeader(value: string): PeopleTemplateHeader | typeof TEMPLATE_EXAMPLE_MARKER_HEADER | undefined {
   const normalized = value
     .trim()
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
+
+  if (normalized === '__templateexample' || normalized === 'templateexample') {
+    return TEMPLATE_EXAMPLE_MARKER_HEADER;
+  }
+
   const headerMap: Record<string, PeopleTemplateHeader> = {
     personid: 'personId',
     fullname: 'fullName',
@@ -102,11 +224,16 @@ function normalizeHeader(value: string): PeopleTemplateHeader | undefined {
 
 function normalizeRelationshipHeader(
   value: string,
-): RelationshipTemplateHeader | undefined {
+): RelationshipTemplateHeader | typeof TEMPLATE_EXAMPLE_MARKER_HEADER | undefined {
   const normalized = value
     .trim()
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
+
+  if (normalized === '__templateexample' || normalized === 'templateexample') {
+    return TEMPLATE_EXAMPLE_MARKER_HEADER;
+  }
+
   const headerMap: Record<string, RelationshipTemplateHeader> = {
     relationshipid: 'relationshipId',
     frompersonid: 'fromPersonId',
@@ -229,16 +356,20 @@ export function buildRelationshipsImportPreview(
   );
   const seenRelationships = new Map<string, number>();
   let skippedRows = 0;
+  let exampleRows = 0;
 
   const previewRows = dataRows.flatMap(
     (row, index): RelationshipImportPreviewRow[] => {
       const rowNumber = index + 2;
       const data: Partial<Record<RelationshipTemplateHeader, string>> = {};
+      let markerValue: string | undefined;
 
       row.forEach((value, columnIndex) => {
         const header = columnHeaders[columnIndex];
 
-        if (header) {
+        if (header === TEMPLATE_EXAMPLE_MARKER_HEADER) {
+          markerValue = trimValue(value);
+        } else if (header) {
           data[header] = trimValue(value);
         }
       });
@@ -246,6 +377,20 @@ export function buildRelationshipsImportPreview(
       if (isRelationshipCompletelyEmpty(data)) {
         skippedRows += 1;
         return [];
+      }
+
+      const isExample = isExampleRelationshipRow(data, markerValue);
+      if (isExample) {
+        exampleRows += 1;
+        return [
+          {
+            rowNumber,
+            data,
+            relationship: undefined,
+            errors: [],
+            isExample: true,
+          },
+        ];
       }
 
       const errors: string[] = [];
@@ -299,19 +444,26 @@ export function buildRelationshipsImportPreview(
           data,
           relationship,
           errors,
+          isExample: false,
         },
       ];
     },
   );
 
-  const validRows = previewRows.filter((row) => row.errors.length === 0).length;
+  const validRows = previewRows.filter(
+    (row) => !row.isExample && row.errors.length === 0,
+  ).length;
+  const invalidRows = previewRows.filter(
+    (row) => !row.isExample && row.errors.length > 0,
+  ).length;
 
   return {
     rows: previewRows,
     totalRows: previewRows.length,
     validRows,
-    invalidRows: previewRows.length - validRows,
+    invalidRows,
     skippedRows,
+    exampleRows,
   };
 }
 
@@ -328,15 +480,19 @@ export function buildPeopleImportPreview(
   const seenPhones = new Map<string, number>();
   const seenEmails = new Map<string, number>();
   let skippedRows = 0;
+  let exampleRows = 0;
 
   const previewRows = dataRows.flatMap((row, index): ImportPreviewRow[] => {
     const rowNumber = index + 2;
     const data: Partial<Record<PeopleTemplateHeader, string>> = {};
+    let markerValue: string | undefined;
 
     row.forEach((value, columnIndex) => {
       const header = columnHeaders[columnIndex];
 
-      if (header) {
+      if (header === TEMPLATE_EXAMPLE_MARKER_HEADER) {
+        markerValue = trimValue(value);
+      } else if (header) {
         data[header] = trimValue(value);
       }
     });
@@ -344,6 +500,20 @@ export function buildPeopleImportPreview(
     if (isCompletelyEmpty(data)) {
       skippedRows += 1;
       return [];
+    }
+
+    const isExample = isExamplePersonRow(data, markerValue);
+    if (isExample) {
+      exampleRows += 1;
+      return [
+        {
+          rowNumber,
+          data,
+          person: undefined,
+          errors: [],
+          isExample: true,
+        },
+      ];
     }
 
     const errors: string[] = [];
@@ -437,10 +607,17 @@ export function buildPeopleImportPreview(
         data,
         person,
         errors,
+        isExample: false,
       },
     ];
   });
-  const validRows = previewRows.filter((row) => row.errors.length === 0).length;
+
+  const validRows = previewRows.filter(
+    (row) => !row.isExample && row.errors.length === 0,
+  ).length;
+  const invalidRows = previewRows.filter(
+    (row) => !row.isExample && row.errors.length > 0,
+  ).length;
 
   const relationships = relationshipRows
     ? buildRelationshipsImportPreview(relationshipRows)
@@ -450,8 +627,9 @@ export function buildPeopleImportPreview(
     rows: previewRows,
     totalRows: previewRows.length,
     validRows,
-    invalidRows: previewRows.length - validRows,
+    invalidRows,
     skippedRows,
+    exampleRows,
     relationships,
   };
 }
@@ -510,10 +688,27 @@ export const bulkImportTemplateRelationshipsHeaders = [
 
 export function downloadPeopleTemplate(format: 'csv' | 'xlsx'): void {
   if (format === 'csv') {
-    // For CSV, output the Details sheet header
-    const worksheet = XLSX.utils.aoa_to_sheet([
-      [...bulkImportTemplateDetailsHeaders],
-    ]);
+    // For CSV, output visible Details headers and mock rows with marker column
+    const csvHeaders = [...bulkImportTemplateDetailsHeaders, TEMPLATE_EXAMPLE_MARKER_HEADER];
+    const csvRows = [
+      csvHeaders,
+      ...mockDetailsRows.map((row) => [
+        row.personId,
+        row.fullName,
+        row.phone,
+        row.email,
+        row.gender,
+        row.occupation,
+        row.state,
+        row.city,
+        row.area,
+        row.notes,
+        row.hasLogin,
+        'TRUE',
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(csvRows);
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     downloadBlob(
       new Blob([csv], { type: 'text/csv;charset=utf-8' }),
@@ -522,21 +717,115 @@ export function downloadPeopleTemplate(format: 'csv' | 'xlsx'): void {
     return;
   }
 
-  // Generate multi-sheet workbook with Details and Relationships
+  // Generate multi-sheet workbook with Instructions, Details and Relationships
   const workbook = XLSX.utils.book_new();
 
-  const detailsWorksheet = XLSX.utils.aoa_to_sheet([
-    [...bulkImportTemplateDetailsHeaders],
-  ]);
-  const relationshipsWorksheet = XLSX.utils.aoa_to_sheet([
-    [...bulkImportTemplateRelationshipsHeaders],
-  ]);
+  // 1. Instructions Sheet
+  const instructionsData = [
+    ['CRM BULK IMPORT TEMPLATE - INSTRUCTIONS & GUIDELINES'],
+    [],
+    ['General Rules:'],
+    ['1. Do NOT modify the header names in row 1 of the Details or Relationships sheets.'],
+    ['2. Example/mock rows provided in the sheets are for guidance and are AUTOMATICALLY IGNORED during import.'],
+    ['3. Add your real data in new rows below the examples, or overwrite/delete the example rows.'],
+    [],
+    ['Details Sheet Columns:'],
+    ['- personId: Stable CRM Person ID (format: P000001). Leave blank for newly generated IDs.'],
+    ['- fullName: Person\'s full name (required, min 2 characters).'],
+    ['- phone: Valid 10-digit Indian mobile number (e.g. 9876500001).'],
+    ['- email: Person\'s email address (e.g. name@example.com).'],
+    ['- (Either phone or email is required).'],
+    ['- gender: male / female / other (required).'],
+    ['- occupation: Job role or occupation (optional).'],
+    ['- state: State of residence (required).'],
+    ['- city: City of residence (optional).'],
+    ['- area: Locality / Area / Neighborhood (optional).'],
+    ['- notes: Any notes or tags (optional).'],
+    ['- hasLogin: yes / no (optional, defaults to no).'],
+    [],
+    ['Relationships Sheet Columns:'],
+    ['- relationshipId: Optional relationship identifier.'],
+    ['- fromPersonId: Person ID of the source person (required).'],
+    ['- toPersonId: Person ID of the related person (required).'],
+    ['- relationshipType: Type of relationship (e.g. FRIEND, SPOUSE, PARENT_CHILD, COLLEAGUE, SIBLING).'],
+  ];
+
+  const instructionsWorksheet = XLSX.utils.aoa_to_sheet(instructionsData);
+  instructionsWorksheet['!cols'] = [{ wch: 100 }];
+
+  // 2. Details Worksheet
+  const detailsHeaders = [...bulkImportTemplateDetailsHeaders, TEMPLATE_EXAMPLE_MARKER_HEADER];
+  const detailsRows = [
+    detailsHeaders,
+    ...mockDetailsRows.map((row) => [
+      row.personId,
+      row.fullName,
+      row.phone,
+      row.email,
+      row.gender,
+      row.occupation,
+      row.state,
+      row.city,
+      row.area,
+      row.notes,
+      row.hasLogin,
+      'TRUE',
+    ]),
+  ];
+
+  const detailsWorksheet = XLSX.utils.aoa_to_sheet(detailsRows);
+  // Set column widths and hide the __templateExample marker column (index 11)
+  detailsWorksheet['!cols'] = [
+    { wch: 15 }, // personId
+    { wch: 24 }, // fullName
+    { wch: 16 }, // phone
+    { wch: 28 }, // email
+    { wch: 12 }, // gender
+    { wch: 22 }, // occupation
+    { wch: 16 }, // state
+    { wch: 16 }, // city
+    { wch: 16 }, // area
+    { wch: 32 }, // notes
+    { wch: 12 }, // hasLogin
+    { hidden: true }, // __templateExample
+  ];
+
+  // 3. Relationships Worksheet
+  const relationshipsHeaders = [
+    ...bulkImportTemplateRelationshipsHeaders,
+    TEMPLATE_EXAMPLE_MARKER_HEADER,
+  ];
+  const relationshipsRows = [
+    relationshipsHeaders,
+    ...mockRelationshipsRows.map((row) => [
+      row.relationshipId,
+      row.fromPersonId,
+      row.toPersonId,
+      row.relationshipType,
+      'TRUE',
+    ]),
+  ];
+
+  const relationshipsWorksheet = XLSX.utils.aoa_to_sheet(relationshipsRows);
+  // Set column widths and hide the __templateExample marker column (index 4)
+  relationshipsWorksheet['!cols'] = [
+    { wch: 20 }, // relationshipId
+    { wch: 16 }, // fromPersonId
+    { wch: 16 }, // toPersonId
+    { wch: 20 }, // relationshipType
+    { hidden: true }, // __templateExample
+  ];
 
   XLSX.utils.book_append_sheet(workbook, detailsWorksheet, 'Details');
   XLSX.utils.book_append_sheet(
     workbook,
     relationshipsWorksheet,
     'Relationships',
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    instructionsWorksheet,
+    'Instructions',
   );
 
   XLSX.writeFile(workbook, 'CRM_Bulk_Import_Template.xlsx');
@@ -552,3 +841,4 @@ function downloadBlob(blob: Blob, filename: string): void {
   link.remove();
   URL.revokeObjectURL(url);
 }
+
