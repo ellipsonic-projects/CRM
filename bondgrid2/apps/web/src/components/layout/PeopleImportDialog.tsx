@@ -5,6 +5,7 @@ import {
   AlertCircle,
   CheckCircle2,
   FileSpreadsheet,
+  HelpCircle,
   UploadCloud,
 } from 'lucide-react';
 import {
@@ -61,7 +62,7 @@ export default function PeopleImportDialog({
     void handleFile(event.dataTransfer.files[0]);
   };
 
-  const validRows = preview?.rows.filter((row) => row.person) ?? [];
+  const validRows = preview?.rows.filter((row) => Boolean(row.person)) ?? [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
@@ -71,7 +72,7 @@ export default function PeopleImportDialog({
             <h2 className="text-xl font-semibold">Import People</h2>
             <p className="mt-1 text-sm text-slate-400">
               Upload a CSV or XLSX file, review validation, then import valid
-              rows only.
+              rows only. Template example rows are automatically ignored.
             </p>
           </div>
           <button
@@ -145,10 +146,11 @@ export default function PeopleImportDialog({
 
         {preview ? (
           <>
-            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-6">
               <SummaryCard label="Total rows" value={preview.totalRows} />
               <SummaryCard label="Valid rows" value={preview.validRows} />
               <SummaryCard label="Invalid rows" value={preview.invalidRows} />
+              <SummaryCard label="Example rows" value={preview.exampleRows} />
               <SummaryCard label="Skipped rows" value={preview.skippedRows} />
               <SummaryCard label="Imported rows" value={importedRows} />
             </div>
@@ -170,17 +172,24 @@ export default function PeopleImportDialog({
                       <th className="px-3 py-2">Email</th>
                       <th className="px-3 py-2">Gender</th>
                       <th className="px-3 py-2">State</th>
-                      <th className="px-3 py-2">Errors</th>
+                      <th className="px-3 py-2">Errors / Note</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
                     {preview.rows.map((row) => (
-                      <tr key={row.rowNumber}>
+                      <tr
+                        key={row.rowNumber}
+                        className={row.isExample ? 'opacity-60 bg-slate-900/20' : ''}
+                      >
                         <td className="px-3 py-2 text-slate-400">
                           {row.rowNumber}
                         </td>
                         <td className="px-3 py-2">
-                          {row.errors.length === 0 ? (
+                          {row.isExample ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                              <HelpCircle size={13} /> Example (Ignored)
+                            </span>
+                          ) : row.errors.length === 0 ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950 px-2 py-1 text-xs text-emerald-300">
                               <CheckCircle2 size={13} /> Valid
                             </span>
@@ -208,10 +217,20 @@ export default function PeopleImportDialog({
                         <td className="px-3 py-2 text-slate-300">
                           {row.data.state || 'Missing'}
                         </td>
-                        <td className="max-w-md px-3 py-2 text-red-200">
-                          {row.errors.length > 0
-                            ? row.errors.join(' ')
-                            : 'Ready to import'}
+                        <td className="max-w-md px-3 py-2 text-slate-300">
+                          {row.isExample ? (
+                            <span className="italic text-slate-400">
+                              Example row - ignored
+                            </span>
+                          ) : row.errors.length > 0 ? (
+                            <span className="text-red-200">
+                              {row.errors.join(' ')}
+                            </span>
+                          ) : (
+                            <span className="text-emerald-300">
+                              Ready to import
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -232,6 +251,11 @@ export default function PeopleImportDialog({
                     <span className="text-emerald-400">
                       Valid: {preview.relationships.validRows}
                     </span>
+                    {preview.relationships.exampleRows > 0 && (
+                      <span className="text-slate-400">
+                        Example: {preview.relationships.exampleRows}
+                      </span>
+                    )}
                     {preview.relationships.invalidRows > 0 && (
                       <span className="text-red-400">
                         Invalid: {preview.relationships.invalidRows}
@@ -249,17 +273,24 @@ export default function PeopleImportDialog({
                         <th className="px-3 py-2">From Person</th>
                         <th className="px-3 py-2">To Person</th>
                         <th className="px-3 py-2">Type</th>
-                        <th className="px-3 py-2">Errors</th>
+                        <th className="px-3 py-2">Errors / Note</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
                       {preview.relationships.rows.map((row) => (
-                        <tr key={row.rowNumber}>
+                        <tr
+                          key={row.rowNumber}
+                          className={row.isExample ? 'opacity-60 bg-slate-900/20' : ''}
+                        >
                           <td className="px-3 py-2 text-slate-400">
                             {row.rowNumber}
                           </td>
                           <td className="px-3 py-2">
-                            {row.errors.length === 0 ? (
+                            {row.isExample ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                                <HelpCircle size={13} /> Example (Ignored)
+                              </span>
+                            ) : row.errors.length === 0 ? (
                               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950 px-2 py-1 text-xs text-emerald-300">
                                 <CheckCircle2 size={13} /> Valid
                               </span>
@@ -281,10 +312,20 @@ export default function PeopleImportDialog({
                           <td className="px-3 py-2 text-slate-300">
                             {row.data.relationshipType || 'Missing'}
                           </td>
-                          <td className="max-w-md px-3 py-2 text-red-200">
-                            {row.errors.length > 0
-                              ? row.errors.join(' ')
-                              : 'Ready for relationship processing'}
+                          <td className="max-w-md px-3 py-2 text-slate-300">
+                            {row.isExample ? (
+                              <span className="italic text-slate-400">
+                                Example row - ignored
+                              </span>
+                            ) : row.errors.length > 0 ? (
+                              <span className="text-red-200">
+                                {row.errors.join(' ')}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-300">
+                                Ready for relationship processing
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -326,3 +367,4 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+
