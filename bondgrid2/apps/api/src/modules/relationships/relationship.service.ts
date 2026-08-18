@@ -7,6 +7,7 @@ import {
   getRelationshipDefinition,
   getRelationshipSelectionOption,
   getRelationshipSelectionOptions,
+  resolveCanonicalRelationshipType,
 } from './relationship.registry';
 import {
   RelationshipMutationInput,
@@ -18,14 +19,221 @@ import {
   CanonicalRelationshipId,
   RelationshipView,
   RelationshipTypeOption,
+  BulkRelationshipInput,
+  ResolvedBulkRelationship,
+  ResolveBulkRelationshipResult,
 } from './relationship.types';
 import { validateRelationshipReference } from './relationship.validation';
+import { PeopleRepository } from '../people/people.repository';
 
 export class RelationshipService {
   constructor(
     private readonly repository = new RelationshipRepository(),
     private readonly resolver = new RelationshipResolver(),
+    private readonly peopleRepository = new PeopleRepository(),
   ) {}
+
+  async resolveBulkRelationships(
+    organizationId: string,
+    rows: BulkRelationshipInput[],
+  ): Promise<ResolveBulkRelationshipResult> {
+    const valid: ResolvedBulkRelationship[] = [];
+    const errors: { row: BulkRelationshipInput; error: string }[] = [];
+
+    // Cache looked up personIds to avoid redundant queries during bulk check
+    const personCache = new Map<string, { id: string; personId: string } | null>();
+
+    const getPerson = async (personId: string) => {
+      const normalized = personId.trim();
+      if (personCache.has(normalized)) {
+        return personCache.get(normalized);
+      }
+      const person = await this.peopleRepository.findByPersonId(
+        organizationId,
+        normalized,
+      );
+      const result = person ? { id: person.id, personId: person.personId ?? normalized } : null;
+      personCache.set(normalized, result);
+      return result;
+    };
+
+    for (const row of rows) {
+      const fromPersonId = row.fromPersonId?.trim();
+      const toPersonId = row.toPersonId?.trim();
+      const relationshipType = row.relationshipType?.trim();
+
+      if (!fromPersonId) {
+        errors.push({ row, error: 'fromPersonId is required.' });
+        continue;
+      }
+
+      if (!toPersonId) {
+        errors.push({ row, error: 'toPersonId is required.' });
+        continue;
+      }
+
+      if (fromPersonId === toPersonId) {
+        errors.push({
+          row,
+          error: 'A person cannot have a relationship with themselves.',
+        });
+        continue;
+      }
+
+      if (!relationshipType) {
+        errors.push({ row, error: 'relationshipType is required.' });
+        continue;
+      }
+
+      const typeResolution = resolveCanonicalRelationshipType(relationshipType);
+      if (!typeResolution) {
+        errors.push({
+          row,
+          error: `Invalid relationship type: ${relationshipType}`,
+        });
+        continue;
+      }
+
+      const fromPerson = await getPerson(fromPersonId);
+      if (!fromPerson) {
+        errors.push({
+          row,
+          error: `Person with personId ${fromPersonId} does not exist.`,
+        });
+        continue;
+      }
+
+      const toPerson = await getPerson(toPersonId);
+      if (!toPerson) {
+        errors.push({
+          row,
+          error: `Person with personId ${toPersonId} does not exist.`,
+        });
+        continue;
+      }
+
+      // If resolved via a natural option with perspective = 'target' (e.g., 'son', 'daughter', 'mentee', 'student'),
+      // the canonical directional relationship flows from parent/mentor/teacher -> child/mentee/student.
+      const option = typeResolution.optionId
+        ? getRelationshipSelectionOption(typeResolution.optionId)
+        : undefined;
+
+      const sourceInternalId =
+        option?.perspective === 'target' ? toPerson.id : fromPerson.id;
+      const targetInternalId =
+        option?.perspective === 'target' ? fromPerson.id : toPerson.id;
+
+      valid.push({
+        relationshipId: row.relationshipId?.trim() || undefined,
+        fromPersonId,
+        toPersonId,
+        relationshipType,
+        sourceInternalId,
+        targetInternalId,
+        canonicalType: typeResolution.canonicalId,
+        optionId: typeResolution.optionId,
+      });
+    }
+
+    return {
+      valid,
+      errors,
+    };
+  }
+
+  async createBulkRelationships(
+    organizationId: string,
+    rows: BulkRelationshipInput[],
+    createdBy: string,
+  ): Promise<{
+    createdCount: number;
+    skippedCount: number;
+    failedCount: number;
+    errors: { row: BulkRelationshipInput; error: string }[];
+  }> {
+    const resolution = await this.resolveBulkRelationships(
+      organizationId,
+      rows,
+    );
+
+    let createdCount = 0;
+    let skippedCount = 0;
+    const errors = [...resolution.errors];
+
+    for (const validItem of resolution.valid) {
+      const rowOriginal: BulkRelationshipInput = {
+        relationshipId: validItem.relationshipId,
+        fromPersonId: validItem.fromPersonId,
+        toPersonId: validItem.toPersonId,
+        relationshipType: validItem.relationshipType,
+      };
+
+      try {
+        const check = await this.repository.checkCreate(organizationId, {
+          type: validItem.canonicalType,
+          sourcePersonId: validItem.sourceInternalId,
+          targetPersonId: validItem.targetInternalId,
+        });
+
+        if (check.duplicateExists) {
+          skippedCount += 1;
+          continue;
+        }
+
+        if (!check.sourceExists || !check.targetExists) {
+          errors.push({
+            row: rowOriginal,
+            error: 'One or both people do not exist.',
+          });
+          continue;
+        }
+
+        const metadata: Record<string, unknown> = {};
+        if (validItem.optionId) {
+          metadata.relationshipOptionId = validItem.optionId;
+          const option = getRelationshipSelectionOption(validItem.optionId);
+          if (option?.customDisplayLabel) {
+            metadata.displayLabel = option.customDisplayLabel;
+          }
+        }
+        if (validItem.relationshipId) {
+          metadata.importRelationshipId = validItem.relationshipId;
+        }
+
+        const created = await this.repository.create(
+          organizationId,
+          {
+            type: validItem.canonicalType,
+            sourcePersonId: validItem.sourceInternalId,
+            targetPersonId: validItem.targetInternalId,
+            metadata,
+          },
+          createdBy,
+        );
+
+        if (created) {
+          createdCount += 1;
+        } else {
+          errors.push({
+            row: rowOriginal,
+            error: 'Failed to create relationship edge.',
+          });
+        }
+      } catch (err) {
+        errors.push({
+          row: rowOriginal,
+          error: err instanceof Error ? err.message : 'Creation failed',
+        });
+      }
+    }
+
+    return {
+      createdCount,
+      skippedCount,
+      failedCount: errors.length,
+      errors,
+    };
+  }
 
   getRelationshipTypes(): RelationshipTypeOption[] {
     return getRelationshipSelectionOptions().map((option) => {

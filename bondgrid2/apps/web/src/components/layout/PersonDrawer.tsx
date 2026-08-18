@@ -9,6 +9,7 @@ import {
 } from '../../services/relationships.api';
 import AvatarUpload from '../form/AvatarUpload';
 import ConfirmationDialog from '../ui/ConfirmationDialog';
+import { getWhatsAppUrl } from '../../utils/whatsapp';
 
 interface PersonDrawerProps {
   person?: Person;
@@ -119,6 +120,13 @@ export default function PersonDrawer({
 }: PersonDrawerProps) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditFormState>(toFormState(person));
+  const [notesText, setNotesText] = useState(person?.notes ?? '');
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesFeedback, setNotesFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  }>();
   const [isAddingRelationship, setIsAddingRelationship] = useState(false);
   const [editingRelationshipId, setEditingRelationshipId] = useState<string>();
   const [relationshipForm, setRelationshipForm] =
@@ -128,12 +136,57 @@ export default function PersonDrawer({
 
   useEffect(() => {
     setForm(toFormState(person));
+    setNotesText(person?.notes ?? '');
+    setIsEditingNotes(false);
+    setNotesSaving(false);
+    setNotesFeedback(undefined);
     setEditing(false);
     setIsAddingRelationship(false);
     setEditingRelationshipId(undefined);
     setRelationshipForm(emptyRelationshipForm);
     setRelationshipToDelete(undefined);
   }, [person]);
+
+  const handleSaveNotes = async () => {
+    if (!person) {
+      return;
+    }
+
+    setNotesSaving(true);
+    setNotesFeedback(undefined);
+
+    const trimmedNotes = notesText.trim();
+
+    try {
+      await onUpdatePerson(person.id, {
+        notes: trimmedNotes,
+      });
+      setNotesText(trimmedNotes);
+      setIsEditingNotes(false);
+      setNotesFeedback({
+        type: 'success',
+        message: 'Notes saved successfully.',
+      });
+      setTimeout(() => {
+        setNotesFeedback((current) =>
+          current?.type === 'success' ? undefined : current,
+        );
+      }, 3000);
+    } catch (err) {
+      setNotesFeedback({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to save notes.',
+      });
+    } finally {
+      setNotesSaving(false);
+    }
+  };
+
+  const handleCancelNotes = () => {
+    setNotesText(person?.notes ?? '');
+    setIsEditingNotes(false);
+    setNotesFeedback(undefined);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -454,14 +507,97 @@ export default function PersonDrawer({
           </div>
 
           <dl className="mt-8 space-y-5">
-            <Detail label="Phone" value={person.phone} />
-            <Detail label="Email" value={person.email} />
+            <Detail label="Person ID" value={person.personId} />
+            <Detail label="Phone" value={person.phone} isPhone />
+            <Detail label="Email" value={person.email} isEmail />
             <Detail label="Gender" value={person.gender} />
             <Detail label="State" value={person.state} />
             <Detail label="City" value={person.city} />
             <Detail label="Area" value={person.area} />
-            <Detail label="Notes" value={person.notes} />
           </dl>
+
+          <section className="mt-8 border-t border-slate-800 pt-6">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-slate-100">Notes</h3>
+              <span className="text-xs text-slate-500">Admin Only</span>
+            </div>
+
+            {isEditingNotes ? (
+              <div className="mt-3">
+                <textarea
+                  value={notesText}
+                  onChange={(e) => setNotesText(e.target.value)}
+                  placeholder="Add internal notes about this person..."
+                  rows={4}
+                  maxLength={1000}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-xs text-slate-500">
+                    {notesText.length}/1000 characters
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCancelNotes}
+                      disabled={notesSaving || saving}
+                      className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveNotes}
+                      disabled={notesSaving || saving}
+                      className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+                    >
+                      {notesSaving ? 'Saving...' : 'Save Notes'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3">
+                {person.notes ? (
+                  <div className="group relative rounded-xl border border-slate-800 bg-slate-900/60 p-3.5 text-sm text-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingNotes(true)}
+                      className="absolute right-2.5 top-2.5 rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                      title="Edit note"
+                    >
+                      <Edit3 size={15} />
+                    </button>
+                    <p className="whitespace-pre-wrap pr-8">{person.notes}</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between rounded-xl border border-dashed border-slate-800 bg-slate-900/30 p-3 text-sm text-slate-500">
+                    <span>No notes added yet.</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingNotes(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1 text-xs font-medium text-slate-200 hover:bg-slate-700 hover:text-white"
+                    >
+                      <Edit3 size={13} />
+                      Add Note
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {notesFeedback ? (
+              <div
+                className={`mt-2.5 rounded-lg p-2 text-xs ${
+                  notesFeedback.type === 'success'
+                    ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-800'
+                    : 'bg-red-950/60 text-red-300 border border-red-800'
+                }`}
+              >
+                {notesFeedback.message}
+              </div>
+            ) : null}
+          </section>
 
           <section className="mt-8 border-t border-slate-800 pt-6">
             <div className="flex items-center justify-between gap-3">
@@ -543,9 +679,30 @@ export default function PersonDrawer({
                         <p className="text-sm font-medium text-slate-100">
                           {relationship.displayLabel}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {relationship.relatedPerson.phone ?? 'No phone'}
-                        </p>
+                        {(() => {
+                          const phone = relationship.relatedPerson.phone;
+                          const whatsappUrl = getWhatsAppUrl(phone);
+                          if (phone && whatsappUrl) {
+                            return (
+                              <p className="mt-1 text-xs">
+                                <a
+                                  href={whatsappUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:underline"
+                                  onClick={(event) => event.stopPropagation()}
+                                >
+                                  {phone}
+                                </a>
+                              </p>
+                            );
+                          }
+                          return (
+                            <p className="mt-1 text-xs text-slate-500">
+                              {phone ?? 'No phone'}
+                            </p>
+                          );
+                        })()}
                         <p className="mt-1 text-xs text-slate-500">
                           {[
                             relationship.relatedPerson.city,
@@ -777,13 +934,49 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function Detail({ label, value }: { label: string; value?: string }) {
+function Detail({
+  label,
+  value,
+  isEmail,
+  isPhone,
+}: {
+  label: string;
+  value?: string;
+  isEmail?: boolean;
+  isPhone?: boolean;
+}) {
+  const whatsappUrl = isPhone ? getWhatsAppUrl(value) : null;
+
   return (
     <div>
       <dt className="text-xs uppercase tracking-widest text-slate-500">
         {label}
       </dt>
-      <dd className="mt-1 text-sm text-slate-200">{value || 'Not added'}</dd>
+      <dd className="mt-1 text-sm text-slate-200">
+        {value ? (
+          isEmail ? (
+            <a
+              href={`mailto:${value}`}
+              className="text-blue-400 hover:underline"
+            >
+              {value}
+            </a>
+          ) : isPhone && whatsappUrl ? (
+            <a
+              href={whatsappUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:underline"
+            >
+              {value}
+            </a>
+          ) : (
+            value
+          )
+        ) : (
+          'Not added'
+        )}
+      </dd>
     </div>
   );
 }

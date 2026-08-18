@@ -3,6 +3,7 @@ import { NextFunction, Request, Response } from 'express';
 import { recordAudit } from '../audit';
 import { RelationshipServiceError } from './relationship.errors';
 import {
+  bulkRelationshipsImportSchema,
   createRelationshipSchema,
   updateRelationshipSchema,
 } from './relationship.schema';
@@ -31,6 +32,46 @@ export class RelationshipController {
       success: true,
       data: this.service.getRelationshipTypes(),
     });
+  };
+
+  importBulkRelationships = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    try {
+      if (!req.user) {
+        res.status(401).json({
+          success: false,
+          error: 'Authentication required.',
+        });
+        return;
+      }
+
+      const body = bulkRelationshipsImportSchema.parse(req.body);
+      const result = await this.service.createBulkRelationships(
+        req.user.organizationId,
+        body.relationships,
+        req.user.userId,
+      );
+
+      void recordAudit({
+        organizationId: req.user.organizationId,
+        userId: req.user.userId,
+        action: 'CREATE_RELATIONSHIP',
+        entity: 'Relationship',
+        entityId: req.user.organizationId,
+        entityName: 'Bulk Relationships',
+        summary: `Imported ${result.createdCount} relationships (${result.skippedCount} skipped, ${result.failedCount} failed).`,
+      });
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
   };
 
   createRelationship = async (

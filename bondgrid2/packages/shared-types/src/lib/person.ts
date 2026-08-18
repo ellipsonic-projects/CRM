@@ -2,6 +2,8 @@ import { BaseEntity } from "./common";
 import { Gender } from "./enums";
 
 export interface Person extends BaseEntity {
+  personId?: string;
+
   fullName: string;
 
   phone?: string;

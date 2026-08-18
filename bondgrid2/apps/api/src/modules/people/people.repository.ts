@@ -51,61 +51,89 @@ export class PeopleRepository {
   ): Promise<Person | null> {
     const session = getSession();
 
-    const person = removeUndefined<Person>({
-      id: randomUUID(),
-      organizationId,
-
-      fullName: data.fullName,
-
-      phone: data.phone,
-      email: data.email,
-
-      gender: data.gender,
-
-      occupation: data.occupation,
-
-      state: data.state,
-      city: data.city,
-      area: data.area,
-
-      notes: data.notes,
-
-      profilePicture: data.profilePicture,
-      profilePictureUrl: data.profilePictureUrl,
-      profilePicturePublicId: data.profilePicturePublicId,
-
-      hasLogin: data.hasLogin ?? false,
-
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
     try {
-      const result = await session.executeWrite((transaction) =>
-        transaction.run(
+      const now = new Date().toISOString();
+      const personUuid = randomUUID();
+
+      const personAttributes = removeUndefined({
+        fullName: data.fullName,
+        phone: data.phone,
+        email: data.email,
+        gender: data.gender,
+        occupation: data.occupation,
+        state: data.state,
+        city: data.city,
+        area: data.area,
+        notes: data.notes,
+        profilePicture: data.profilePicture,
+        profilePictureUrl: data.profilePictureUrl,
+        profilePicturePublicId: data.profilePicturePublicId,
+        hasLogin: data.hasLogin ?? false,
+      });
+
+      const result = await session.executeWrite(async (transaction) => {
+        let personId = data.personId?.trim();
+
+        if (personId) {
+          // If personId was supplied (e.g. P100001), ensure SequenceCounter stays ahead
+          const matchNumber = parseInt(personId.replace(/\D/g, ''), 10);
+          if (!isNaN(matchNumber) && matchNumber > 0) {
+            await transaction.run(
+              `
+              MERGE (c:SequenceCounter {name: 'Person'})
+              ON CREATE SET c.currentValue = $matchNumber
+              ON MATCH SET c.currentValue = CASE 
+                WHEN c.currentValue < $matchNumber THEN $matchNumber 
+                ELSE c.currentValue 
+              END
+              `,
+              { matchNumber: neo4j.int(matchNumber) },
+            );
+          }
+        } else {
+          // Atomically increment the sequence counter for generated ID
+          const seqResult = await transaction.run(`
+            MERGE (c:SequenceCounter {name: 'Person'})
+            ON CREATE SET c.currentValue = 1
+            ON MATCH SET c.currentValue = c.currentValue + 1
+            RETURN c.currentValue AS seq
+          `);
+
+          const seqNumber = toNumber(seqResult.records[0].get('seq'));
+          personId = `P${String(seqNumber).padStart(6, '0')}`;
+        }
+
+        const person: Person = {
+          id: personUuid,
+          organizationId,
+          personId,
+          ...personAttributes,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        const createResult = await transaction.run(
           `
           MATCH (o:Organization {id: $organizationId})
-
           CREATE (p:Person)
-
           SET p += $person
-
           CREATE (o)-[:HAS_PERSON]->(p)
-
           RETURN p
           `,
           {
             organizationId,
             person,
           },
-        ),
-      );
+        );
 
-      if (result.records.length === 0) {
-        return null;
-      }
+        if (createResult.records.length === 0) {
+          return null;
+        }
 
-      return person;
+        return person;
+      });
+
+      return result;
     } finally {
       await session.close();
     }
@@ -186,6 +214,73 @@ export class PeopleRepository {
           LIMIT 1
           `,
           { organizationId, id },
+        ),
+      );
+
+      const record = result.records[0];
+
+      if (!record) {
+        return null;
+      }
+
+      return record.get('person').properties as Person;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async findByPersonId(
+    organizationId: string,
+    personId: string,
+  ): Promise<Person | null> {
+    const session = getSession();
+
+    try {
+      const result = await session.executeRead((transaction) =>
+        transaction.run(
+          `
+          MATCH (:Organization {id: $organizationId})-[:HAS_PERSON]->(person:Person {personId: $personId})
+          RETURN person
+          LIMIT 1
+          `,
+          { organizationId, personId },
+        ),
+      );
+
+      const record = result.records[0];
+
+      if (!record) {
+        return null;
+      }
+
+      return record.get('person').properties as Person;
+    } finally {
+      await session.close();
+    }
+  }
+
+  async updateByPersonId(
+    organizationId: string,
+    personId: string,
+    data: UpdatePersonInput,
+  ): Promise<Person | null> {
+    const session = getSession();
+    const { id: _ignoredId, personId: _ignoredPersonId, ...safeData } = data as Record<string, unknown>;
+    const updates = removeUndefined({
+      ...safeData,
+      updatedAt: new Date().toISOString(),
+    });
+
+    try {
+      const result = await session.executeWrite((transaction) =>
+        transaction.run(
+          `
+          MATCH (:Organization {id: $organizationId})-[:HAS_PERSON]->(person:Person {personId: $personId})
+          SET person += $updates
+          RETURN person
+          LIMIT 1
+          `,
+          { organizationId, personId, updates },
         ),
       );
 

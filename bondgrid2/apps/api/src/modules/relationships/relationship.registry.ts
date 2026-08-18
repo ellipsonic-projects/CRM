@@ -1,3 +1,4 @@
+import { CANONICAL_RELATIONSHIP_IDS } from './relationship.constants';
 import {
   CanonicalRelationshipId,
   RelationshipDefinition,
@@ -492,4 +493,31 @@ export function getRelationshipSelectionOption(
   id: string,
 ): RelationshipSelectionOption | undefined {
   return relationshipSelectionOptions.find((option) => option.id === id);
+}
+
+export function resolveCanonicalRelationshipType(
+  rawType: string,
+): { canonicalId: CanonicalRelationshipId; optionId?: string } | null {
+  const normalized = rawType.trim().toUpperCase().replace(/[\s-]+/g, '_');
+
+  // 1. Direct canonical match
+  if ((CANONICAL_RELATIONSHIP_IDS as readonly string[]).includes(normalized)) {
+    return { canonicalId: normalized as CanonicalRelationshipId };
+  }
+
+  // 2. Normalized natural option match (e.g., "Father", "Son", "Close Friend")
+  const option = relationshipSelectionOptions.find((opt) => {
+    const optIdNorm = opt.id.trim().toUpperCase().replace(/[\s-]+/g, '_');
+    const optLabelNorm = opt.label.trim().toUpperCase().replace(/[\s-]+/g, '_');
+    return optIdNorm === normalized || optLabelNorm === normalized;
+  });
+
+  if (option) {
+    return {
+      canonicalId: option.canonicalId,
+      optionId: option.id,
+    };
+  }
+
+  return null;
 }
