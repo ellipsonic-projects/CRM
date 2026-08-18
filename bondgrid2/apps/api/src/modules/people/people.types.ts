@@ -3,6 +3,7 @@ export type Gender = 'male' | 'female' | 'other';
 export interface Person {
   id: string;
   organizationId: string;
+  personId?: string;
 
   fullName: string;
 
@@ -30,6 +31,8 @@ export interface Person {
 }
 
 export interface CreatePersonRequest {
+  personId?: string;
+
   fullName: string;
 
   phone?: string;

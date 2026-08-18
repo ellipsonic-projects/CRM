@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { CreatePersonInput, Gender, Person } from '../services/people.api';
 
 export const peopleTemplateHeaders = [
+  'personId',
   'fullName',
   'phone',
   'email',
@@ -41,6 +42,7 @@ function normalizeHeader(value: string): PeopleTemplateHeader | undefined {
     .toLowerCase()
     .replace(/[\s_-]+/g, '');
   const headerMap: Record<string, PeopleTemplateHeader> = {
+    personid: 'personId',
     fullname: 'fullName',
     name: 'fullName',
     phone: 'phone',
@@ -93,13 +95,16 @@ function isCompletelyEmpty(
 }
 
 function toWorksheetRows(workbook: XLSX.WorkBook): string[][] {
-  const sheetName = workbook.SheetNames[0];
+  const targetSheetName =
+    workbook.SheetNames.find(
+      (name) => name.trim().toLowerCase() === 'details',
+    ) ?? workbook.SheetNames[0];
 
-  if (!sheetName) {
+  if (!targetSheetName) {
     return [];
   }
 
-  const sheet = workbook.Sheets[sheetName];
+  const sheet = workbook.Sheets[targetSheetName];
 
   return XLSX.utils.sheet_to_json<string[]>(sheet, {
     header: 1,
@@ -221,9 +226,10 @@ export function buildPeopleImportPreview(
       }
     }
 
-    const person =
+    const person: CreatePersonInput | undefined =
       errors.length === 0
         ? {
+            personId: optional(data.personId?.trim() ?? ''),
             fullName,
             phone: optional(phone),
             email: optional(email),
@@ -259,6 +265,7 @@ export function buildPeopleImportPreview(
 
 export function peopleToRows(people: Person[]): Record<string, string>[] {
   return people.map((person) => ({
+    personId: person.personId ?? '',
     fullName: person.fullName,
     phone: person.phone ?? '',
     email: person.email ?? '',
@@ -287,37 +294,59 @@ export function downloadPeopleXlsx(people: Person[], filename: string): void {
   XLSX.writeFile(workbook, filename);
 }
 
-export function downloadPeopleTemplate(format: 'csv' | 'xlsx'): void {
-  const sample = [
-    {
-      fullName: 'Asha Sharma',
-      phone: '9876543210',
-      email: 'asha@example.com',
-      gender: 'female',
-      occupation: 'Teacher',
-      state: 'Maharashtra',
-      city: 'Pune',
-      area: 'Kothrud',
-      notes: 'Sample row',
-      hasLogin: 'no',
-    },
-  ];
-  const worksheet = XLSX.utils.json_to_sheet(sample, {
-    header: [...peopleTemplateHeaders],
-  });
+export const bulkImportTemplateDetailsHeaders = [
+  'personId',
+  'fullName',
+  'phone',
+  'email',
+  'gender',
+  'occupation',
+  'state',
+  'city',
+  'area',
+  'notes',
+  'hasLogin',
+] as const;
 
+export const bulkImportTemplateRelationshipsHeaders = [
+  'relationshipId',
+  'fromPersonId',
+  'toPersonId',
+  'relationshipType',
+] as const;
+
+export function downloadPeopleTemplate(format: 'csv' | 'xlsx'): void {
   if (format === 'csv') {
+    // For CSV, output the Details sheet header
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      [...bulkImportTemplateDetailsHeaders],
+    ]);
     const csv = XLSX.utils.sheet_to_csv(worksheet);
     downloadBlob(
       new Blob([csv], { type: 'text/csv;charset=utf-8' }),
-      'people-import-template.csv',
+      'CRM_Bulk_Import_Template.csv',
     );
     return;
   }
 
+  // Generate multi-sheet workbook with Details and Relationships
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'People');
-  XLSX.writeFile(workbook, 'people-import-template.xlsx');
+
+  const detailsWorksheet = XLSX.utils.aoa_to_sheet([
+    [...bulkImportTemplateDetailsHeaders],
+  ]);
+  const relationshipsWorksheet = XLSX.utils.aoa_to_sheet([
+    [...bulkImportTemplateRelationshipsHeaders],
+  ]);
+
+  XLSX.utils.book_append_sheet(workbook, detailsWorksheet, 'Details');
+  XLSX.utils.book_append_sheet(
+    workbook,
+    relationshipsWorksheet,
+    'Relationships',
+  );
+
+  XLSX.writeFile(workbook, 'CRM_Bulk_Import_Template.xlsx');
 }
 
 function downloadBlob(blob: Blob, filename: string): void {

@@ -6,6 +6,7 @@ export type Gender = 'male' | 'female' | 'other';
 export interface Person {
   id: string;
   organizationId: string;
+  personId?: string;
   fullName: string;
   phone?: string;
   email?: string;
@@ -24,6 +25,7 @@ export interface Person {
 }
 
 export interface CreatePersonInput {
+  personId?: string;
   fullName: string;
   phone?: string;
   email?: string;
@@ -134,6 +136,7 @@ function toPersonFormData(
 ): FormData {
   const formData = new FormData();
 
+  appendOptionalFormValue(formData, 'personId', (data as CreatePersonInput).personId);
   appendOptionalFormValue(formData, 'fullName', data.fullName);
   appendOptionalFormValue(formData, 'phone', data.phone);
   appendOptionalFormValue(formData, 'email', data.email);

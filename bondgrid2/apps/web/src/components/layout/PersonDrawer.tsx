@@ -455,6 +455,7 @@ export default function PersonDrawer({
           </div>
 
           <dl className="mt-8 space-y-5">
+            <Detail label="Person ID" value={person.personId} />
             <Detail label="Phone" value={person.phone} isPhone />
             <Detail label="Email" value={person.email} isEmail />
             <Detail label="Gender" value={person.gender} />

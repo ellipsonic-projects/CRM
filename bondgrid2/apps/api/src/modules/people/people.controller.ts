@@ -49,6 +49,8 @@ export class PeopleController {
         return;
       }
 
+      const isUpdate = Boolean(body.personId);
+
       const person = await this.peopleService.createPerson(
         req.user.organizationId,
         body,
@@ -66,18 +68,28 @@ export class PeopleController {
       void recordAudit({
         organizationId: req.user.organizationId,
         userId: req.user.userId,
-        action: 'CREATE_PERSON',
+        action: isUpdate ? 'UPDATE_PERSON' : 'CREATE_PERSON',
         entity: 'Person',
         entityId: person.id,
         entityName: person.fullName,
-        summary: `Created person ${person.fullName}.`,
+        summary: isUpdate
+          ? `Updated person ${person.fullName} (${person.personId}).`
+          : `Created person ${person.fullName}.`,
       });
 
-      res.status(201).json({
+      res.status(isUpdate ? 200 : 201).json({
         success: true,
         data: person,
       });
     } catch (error) {
+      if (error instanceof Error && error.message.includes('does not exist')) {
+        res.status(404).json({
+          success: false,
+          error: error.message,
+        });
+        return;
+      }
+
       next(error);
     }
   };

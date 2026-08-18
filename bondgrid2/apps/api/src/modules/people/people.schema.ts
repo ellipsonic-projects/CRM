@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
 const personFieldsSchema = z.object({
+  personId: z.string().trim().optional(),
+
   fullName: z
     .string({ error: 'Full name is required.' })
     .trim()
