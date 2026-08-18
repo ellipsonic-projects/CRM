@@ -168,6 +168,33 @@ export async function updateRelationship(
   });
 }
 
+export async function importBulkRelationships(
+  relationships: {
+    relationshipId?: string;
+    fromPersonId: string;
+    toPersonId: string;
+    relationshipType: string;
+  }[],
+): Promise<{
+  createdCount: number;
+  skippedCount: number;
+  failedCount: number;
+  errors: {
+    row: {
+      relationshipId?: string;
+      fromPersonId: string;
+      toPersonId: string;
+      relationshipType: string;
+    };
+    error: string;
+  }[];
+}> {
+  return request('/api/v1/relationships/import', {
+    method: 'POST',
+    body: JSON.stringify({ relationships }),
+  });
+}
+
 export async function deleteRelationship(id: string): Promise<void> {
   await request<void>(`/api/v1/relationships/${id}`, {
     method: 'DELETE',

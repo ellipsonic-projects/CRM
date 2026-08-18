@@ -74,5 +74,29 @@ export const updateRelationshipSchema = z.object({
   metadata: metadataSchema.optional(),
 });
 
+export const bulkRelationshipItemSchema = z.object({
+  relationshipId: z.string().trim().optional(),
+  fromPersonId: z
+    .string({ error: 'fromPersonId is required.' })
+    .trim()
+    .min(1, { message: 'fromPersonId is required.' }),
+  toPersonId: z
+    .string({ error: 'toPersonId is required.' })
+    .trim()
+    .min(1, { message: 'toPersonId is required.' }),
+  relationshipType: z
+    .string({ error: 'relationshipType is required.' })
+    .trim()
+    .min(1, { message: 'relationshipType is required.' }),
+});
+
+export const bulkRelationshipsImportSchema = z.object({
+  relationships: z.array(bulkRelationshipItemSchema),
+});
+
 export type CreateRelationshipDto = z.infer<typeof createRelationshipSchema>;
 export type UpdateRelationshipDto = z.infer<typeof updateRelationshipSchema>;
+export type BulkRelationshipItemDto = z.infer<typeof bulkRelationshipItemSchema>;
+export type BulkRelationshipsImportDto = z.infer<
+  typeof bulkRelationshipsImportSchema
+>;

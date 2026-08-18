@@ -152,3 +152,29 @@ export interface ResolvedRelationshipDisplay {
   isSelectedSource: boolean;
   isSelectedTarget: boolean;
 }
+
+export interface BulkRelationshipInput {
+  relationshipId?: string;
+  fromPersonId: string;
+  toPersonId: string;
+  relationshipType: string;
+}
+
+export interface ResolvedBulkRelationship {
+  relationshipId?: string;
+  fromPersonId: string;
+  toPersonId: string;
+  relationshipType: string;
+  sourceInternalId: string;
+  targetInternalId: string;
+  canonicalType: CanonicalRelationshipId;
+  optionId?: string;
+}
+
+export interface ResolveBulkRelationshipResult {
+  valid: ResolvedBulkRelationship[];
+  errors: {
+    row: BulkRelationshipInput;
+    error: string;
+  }[];
+}

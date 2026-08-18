@@ -156,14 +156,15 @@ export default function PeopleImportDialog({
             <div className="mt-6 overflow-hidden rounded-xl border border-slate-800">
               <div className="flex items-center gap-2 border-b border-slate-800 bg-slate-900/70 px-4 py-3">
                 <FileSpreadsheet size={18} className="text-blue-300" />
-                <h3 className="font-medium">Preview</h3>
+                <h3 className="font-medium">People Preview</h3>
               </div>
-              <div className="max-h-[42vh] overflow-auto">
+              <div className="max-h-[35vh] overflow-auto">
                 <table className="w-full min-w-[1100px] text-left text-sm">
                   <thead className="sticky top-0 bg-slate-900 text-xs uppercase tracking-wider text-slate-500">
                     <tr>
                       <th className="px-3 py-2">Row</th>
                       <th className="px-3 py-2">Status</th>
+                      <th className="px-3 py-2">Person ID</th>
                       <th className="px-3 py-2">Full name</th>
                       <th className="px-3 py-2">Phone</th>
                       <th className="px-3 py-2">Email</th>
@@ -188,6 +189,9 @@ export default function PeopleImportDialog({
                               <AlertCircle size={13} /> Invalid
                             </span>
                           )}
+                        </td>
+                        <td className="px-3 py-2 text-slate-300">
+                          {row.data.personId || '-'}
                         </td>
                         <td className="px-3 py-2 text-slate-200">
                           {row.data.fullName || 'Missing'}
@@ -215,6 +219,80 @@ export default function PeopleImportDialog({
                 </table>
               </div>
             </div>
+
+            {preview.relationships ? (
+              <div className="mt-6 overflow-hidden rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900/70 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <FileSpreadsheet size={18} className="text-purple-300" />
+                    <h3 className="font-medium">Relationships Preview</h3>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <span>Total: {preview.relationships.totalRows}</span>
+                    <span className="text-emerald-400">
+                      Valid: {preview.relationships.validRows}
+                    </span>
+                    {preview.relationships.invalidRows > 0 && (
+                      <span className="text-red-400">
+                        Invalid: {preview.relationships.invalidRows}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="max-h-[30vh] overflow-auto">
+                  <table className="w-full min-w-[700px] text-left text-sm">
+                    <thead className="sticky top-0 bg-slate-900 text-xs uppercase tracking-wider text-slate-500">
+                      <tr>
+                        <th className="px-3 py-2">Row</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2">Relationship ID</th>
+                        <th className="px-3 py-2">From Person</th>
+                        <th className="px-3 py-2">To Person</th>
+                        <th className="px-3 py-2">Type</th>
+                        <th className="px-3 py-2">Errors</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {preview.relationships.rows.map((row) => (
+                        <tr key={row.rowNumber}>
+                          <td className="px-3 py-2 text-slate-400">
+                            {row.rowNumber}
+                          </td>
+                          <td className="px-3 py-2">
+                            {row.errors.length === 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-950 px-2 py-1 text-xs text-emerald-300">
+                                <CheckCircle2 size={13} /> Valid
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-950 px-2 py-1 text-xs text-red-200">
+                                <AlertCircle size={13} /> Invalid
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-slate-300">
+                            {row.data.relationshipId || '-'}
+                          </td>
+                          <td className="px-3 py-2 font-mono text-slate-200">
+                            {row.data.fromPersonId || 'Missing'}
+                          </td>
+                          <td className="px-3 py-2 font-mono text-slate-200">
+                            {row.data.toPersonId || 'Missing'}
+                          </td>
+                          <td className="px-3 py-2 text-slate-300">
+                            {row.data.relationshipType || 'Missing'}
+                          </td>
+                          <td className="max-w-md px-3 py-2 text-red-200">
+                            {row.errors.length > 0
+                              ? row.errors.join(' ')
+                              : 'Ready for relationship processing'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-6 flex justify-end gap-3">
               <button

@@ -28,37 +28,35 @@ export class PeopleService {
         personId,
       );
 
-      if (!existing) {
-        throw new Error(`Person with personId ${personId} does not exist.`);
+      if (existing) {
+        if (!profilePicture) {
+          return this.repository.updateByPersonId(organizationId, personId, data);
+        }
+
+        const uploaded = await this.uploadService.uploadImage(
+          profilePicture.buffer,
+          PERSON_PROFILE_PICTURE_FOLDER,
+        );
+
+        await this.uploadService.deleteImage(existing.profilePicturePublicId);
+
+        const updated = await this.repository.updateByPersonId(
+          organizationId,
+          personId,
+          {
+            ...data,
+            profilePicture: uploaded.secureUrl,
+            profilePictureUrl: uploaded.secureUrl,
+            profilePicturePublicId: uploaded.publicId,
+          },
+        );
+
+        if (!updated) {
+          await this.uploadService.deleteImage(uploaded.publicId);
+        }
+
+        return updated;
       }
-
-      if (!profilePicture) {
-        return this.repository.updateByPersonId(organizationId, personId, data);
-      }
-
-      const uploaded = await this.uploadService.uploadImage(
-        profilePicture.buffer,
-        PERSON_PROFILE_PICTURE_FOLDER,
-      );
-
-      await this.uploadService.deleteImage(existing.profilePicturePublicId);
-
-      const updated = await this.repository.updateByPersonId(
-        organizationId,
-        personId,
-        {
-          ...data,
-          profilePicture: uploaded.secureUrl,
-          profilePictureUrl: uploaded.secureUrl,
-          profilePicturePublicId: uploaded.publicId,
-        },
-      );
-
-      if (!updated) {
-        await this.uploadService.deleteImage(uploaded.publicId);
-      }
-
-      return updated;
     }
 
     if (!profilePicture) {
@@ -96,6 +94,13 @@ export class PeopleService {
     id: string,
   ): Promise<Person | null> {
     return this.repository.findById(organizationId, id);
+  }
+
+  async getPersonByPersonId(
+    organizationId: string,
+    personId: string,
+  ): Promise<Person | null> {
+    return this.repository.findByPersonId(organizationId, personId);
   }
 
   async updatePerson(

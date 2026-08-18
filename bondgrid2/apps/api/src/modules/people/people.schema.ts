@@ -1,7 +1,13 @@
 import { z } from 'zod';
 
 const personFieldsSchema = z.object({
-  personId: z.string().trim().optional(),
+  personId: z
+    .string()
+    .trim()
+    .regex(/^P\d{6}$/, {
+      message: 'Person ID must be in the format P followed by 6 digits (e.g. P000001).',
+    })
+    .optional(),
 
   fullName: z
     .string({ error: 'Full name is required.' })

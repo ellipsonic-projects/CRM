@@ -34,6 +34,7 @@ import {
   deleteRelationship,
   getPersonRelationships,
   getRelationshipTypes,
+  importBulkRelationships,
   Relationship,
   RelationshipTypeOption,
   updateRelationship as updateRelationshipApi,
@@ -376,10 +377,34 @@ export default function PeoplePage() {
     try {
       let imported = 0;
 
+      // 1. Process Details/People first
       for (const person of validPeople) {
         await createPerson(person);
         imported += 1;
         setImportedRows(imported);
+      }
+
+      // 2. Process Relationships second if present
+      if (
+        preview.relationships &&
+        preview.relationships.rows.length > 0
+      ) {
+        const validRelationships = preview.relationships.rows
+          .map((r) => r.relationship)
+          .filter((rel): rel is NonNullable<typeof rel> => Boolean(rel));
+
+        if (validRelationships.length > 0) {
+          const importResult = await importBulkRelationships(validRelationships);
+
+          if (importResult.failedCount > 0) {
+            const errorSummary = importResult.errors
+              .map((e) => `[${e.row.fromPersonId} -> ${e.row.toPersonId}]: ${e.error}`)
+              .join('; ');
+            setError(
+              `Imported ${imported} people. Relationships: ${importResult.createdCount} created, ${importResult.skippedCount} skipped, ${importResult.failedCount} failed (${errorSummary}).`,
+            );
+          }
+        }
       }
 
       await loadPeople();

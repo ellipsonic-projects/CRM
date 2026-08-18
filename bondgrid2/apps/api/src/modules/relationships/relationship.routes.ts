@@ -9,6 +9,7 @@ const controller = new RelationshipController();
 router.use(authenticate);
 router.get('/types', controller.getRelationshipTypes);
 router.get('/', controller.listRelationships);
+router.post('/import', controller.importBulkRelationships);
 router.post('/', controller.createRelationship);
 router.get('/:id', controller.getRelationshipById);
 router.put('/:id', controller.updateRelationship);

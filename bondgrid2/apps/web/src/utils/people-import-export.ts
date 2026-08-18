@@ -17,11 +17,43 @@ export const peopleTemplateHeaders = [
 
 type PeopleTemplateHeader = (typeof peopleTemplateHeaders)[number];
 
+export const relationshipTemplateHeaders = [
+  'relationshipId',
+  'fromPersonId',
+  'toPersonId',
+  'relationshipType',
+] as const;
+
+export type RelationshipTemplateHeader =
+  (typeof relationshipTemplateHeaders)[number];
+
+export interface BulkRelationshipRow {
+  relationshipId?: string;
+  fromPersonId: string;
+  toPersonId: string;
+  relationshipType: string;
+}
+
 export interface ImportPreviewRow {
   rowNumber: number;
   data: Partial<Record<PeopleTemplateHeader, string>>;
   person?: CreatePersonInput;
   errors: string[];
+}
+
+export interface RelationshipImportPreviewRow {
+  rowNumber: number;
+  data: Partial<Record<RelationshipTemplateHeader, string>>;
+  relationship?: BulkRelationshipRow;
+  errors: string[];
+}
+
+export interface RelationshipImportPreviewResult {
+  rows: RelationshipImportPreviewRow[];
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  skippedRows: number;
 }
 
 export interface ImportPreviewResult {
@@ -30,6 +62,12 @@ export interface ImportPreviewResult {
   validRows: number;
   invalidRows: number;
   skippedRows: number;
+  relationships?: RelationshipImportPreviewResult;
+}
+
+export interface ParsedImportSheets {
+  peopleRows: string[][];
+  relationshipRows?: string[][];
 }
 
 const phonePattern = /^[6-9]\d{9}$/;
@@ -57,6 +95,28 @@ function normalizeHeader(value: string): PeopleTemplateHeader | undefined {
     note: 'notes',
     haslogin: 'hasLogin',
     login: 'hasLogin',
+  };
+
+  return headerMap[normalized];
+}
+
+function normalizeRelationshipHeader(
+  value: string,
+): RelationshipTemplateHeader | undefined {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+  const headerMap: Record<string, RelationshipTemplateHeader> = {
+    relationshipid: 'relationshipId',
+    frompersonid: 'fromPersonId',
+    fromperson: 'fromPersonId',
+    fromid: 'fromPersonId',
+    topersonid: 'toPersonId',
+    toperson: 'toPersonId',
+    toid: 'toPersonId',
+    relationshiptype: 'relationshipType',
+    type: 'relationshipType',
   };
 
   return headerMap[normalized];
@@ -94,17 +154,16 @@ function isCompletelyEmpty(
   return peopleTemplateHeaders.every((header) => !data[header]?.trim());
 }
 
-function toWorksheetRows(workbook: XLSX.WorkBook): string[][] {
-  const targetSheetName =
-    workbook.SheetNames.find(
-      (name) => name.trim().toLowerCase() === 'details',
-    ) ?? workbook.SheetNames[0];
+function isRelationshipCompletelyEmpty(
+  data: Partial<Record<RelationshipTemplateHeader, string>>,
+): boolean {
+  return relationshipTemplateHeaders.every((header) => !data[header]?.trim());
+}
 
-  if (!targetSheetName) {
+function extractWorksheetRows(sheet?: XLSX.WorkSheet): string[][] {
+  if (!sheet) {
     return [];
   }
-
-  const sheet = workbook.Sheets[targetSheetName];
 
   return XLSX.utils.sheet_to_json<string[]>(sheet, {
     header: 1,
@@ -113,18 +172,40 @@ function toWorksheetRows(workbook: XLSX.WorkBook): string[][] {
   });
 }
 
-function readCsv(text: string): string[][] {
-  return XLSX.utils.sheet_to_json<string[]>(
-    XLSX.read(text, { type: 'string' }).Sheets.Sheet1,
-    {
-      header: 1,
-      blankrows: false,
-      defval: '',
-    },
+function toWorksheetRows(workbook: XLSX.WorkBook): ParsedImportSheets {
+  const detailsSheetName =
+    workbook.SheetNames.find(
+      (name) => name.trim().toLowerCase() === 'details',
+    ) ?? workbook.SheetNames[0];
+
+  const relationshipsSheetName = workbook.SheetNames.find(
+    (name) => name.trim().toLowerCase() === 'relationships',
   );
+
+  const peopleRows = detailsSheetName
+    ? extractWorksheetRows(workbook.Sheets[detailsSheetName])
+    : [];
+
+  const relationshipRows = relationshipsSheetName
+    ? extractWorksheetRows(workbook.Sheets[relationshipsSheetName])
+    : undefined;
+
+  return {
+    peopleRows,
+    relationshipRows,
+  };
 }
 
-export async function parsePeopleImportFile(file: File): Promise<string[][]> {
+function readCsv(text: string): ParsedImportSheets {
+  const sheet = XLSX.read(text, { type: 'string' }).Sheets.Sheet1;
+  return {
+    peopleRows: extractWorksheetRows(sheet),
+  };
+}
+
+export async function parsePeopleImportFile(
+  file: File,
+): Promise<ParsedImportSheets | string[][]> {
   const extension = file.name.split('.').pop()?.toLowerCase();
 
   if (extension === 'csv') {
@@ -139,9 +220,109 @@ export async function parsePeopleImportFile(file: File): Promise<string[][]> {
   throw new Error('Please upload a CSV or XLSX file.');
 }
 
-export function buildPeopleImportPreview(
+export function buildRelationshipsImportPreview(
   rows: string[][],
+): RelationshipImportPreviewResult {
+  const [headers = [], ...dataRows] = rows;
+  const columnHeaders = headers.map((header) =>
+    normalizeRelationshipHeader(header),
+  );
+  const seenRelationships = new Map<string, number>();
+  let skippedRows = 0;
+
+  const previewRows = dataRows.flatMap(
+    (row, index): RelationshipImportPreviewRow[] => {
+      const rowNumber = index + 2;
+      const data: Partial<Record<RelationshipTemplateHeader, string>> = {};
+
+      row.forEach((value, columnIndex) => {
+        const header = columnHeaders[columnIndex];
+
+        if (header) {
+          data[header] = trimValue(value);
+        }
+      });
+
+      if (isRelationshipCompletelyEmpty(data)) {
+        skippedRows += 1;
+        return [];
+      }
+
+      const errors: string[] = [];
+      const relationshipId = optional(data.relationshipId?.trim() ?? '');
+      const fromPersonId = data.fromPersonId?.trim() ?? '';
+      const toPersonId = data.toPersonId?.trim() ?? '';
+      const relationshipType = data.relationshipType?.trim() ?? '';
+
+      if (!fromPersonId) {
+        errors.push('fromPersonId is required.');
+      }
+
+      if (!toPersonId) {
+        errors.push('toPersonId is required.');
+      }
+
+      if (!relationshipType) {
+        errors.push('relationshipType is required.');
+      }
+
+      if (fromPersonId && toPersonId && fromPersonId === toPersonId) {
+        errors.push('A person cannot have a relationship with themselves.');
+      }
+
+      if (fromPersonId && toPersonId && relationshipType) {
+        const key = `${fromPersonId.toLowerCase()}|${toPersonId.toLowerCase()}|${relationshipType.toLowerCase()}`;
+        const firstSeen = seenRelationships.get(key);
+
+        if (firstSeen !== undefined) {
+          errors.push(
+            `Duplicate relationship in import file; first seen on row ${firstSeen}.`,
+          );
+        } else {
+          seenRelationships.set(key, rowNumber);
+        }
+      }
+
+      const relationship: BulkRelationshipRow | undefined =
+        errors.length === 0
+          ? {
+              relationshipId,
+              fromPersonId,
+              toPersonId,
+              relationshipType,
+            }
+          : undefined;
+
+      return [
+        {
+          rowNumber,
+          data,
+          relationship,
+          errors,
+        },
+      ];
+    },
+  );
+
+  const validRows = previewRows.filter((row) => row.errors.length === 0).length;
+
+  return {
+    rows: previewRows,
+    totalRows: previewRows.length,
+    validRows,
+    invalidRows: previewRows.length - validRows,
+    skippedRows,
+  };
+}
+
+export function buildPeopleImportPreview(
+  input: ParsedImportSheets | string[][],
 ): ImportPreviewResult {
+  const rows = Array.isArray(input) ? input : input.peopleRows;
+  const relationshipRows = Array.isArray(input)
+    ? undefined
+    : input.relationshipRows;
+
   const [headers = [], ...dataRows] = rows;
   const columnHeaders = headers.map((header) => normalizeHeader(header));
   const seenPhones = new Map<string, number>();
@@ -166,6 +347,7 @@ export function buildPeopleImportPreview(
     }
 
     const errors: string[] = [];
+    const rawPersonId = data.personId?.trim() ?? '';
     const fullName = data.fullName?.trim() ?? '';
     const phone = data.phone?.replace(/\s+/g, '') ?? '';
     const email = data.email?.trim().toLowerCase() ?? '';
@@ -173,6 +355,12 @@ export function buildPeopleImportPreview(
     const gender = genderValue as Gender;
     const state = data.state?.trim() ?? '';
     const hasLogin = parseBoolean(data.hasLogin ?? '');
+
+    if (rawPersonId && !/^P\d{6}$/.test(rawPersonId)) {
+      errors.push(
+        'Person ID must be in the format P followed by 6 digits (e.g. P000001).',
+      );
+    }
 
     if (fullName.length < 2) {
       errors.push('Full name is required.');
@@ -254,12 +442,17 @@ export function buildPeopleImportPreview(
   });
   const validRows = previewRows.filter((row) => row.errors.length === 0).length;
 
+  const relationships = relationshipRows
+    ? buildRelationshipsImportPreview(relationshipRows)
+    : undefined;
+
   return {
     rows: previewRows,
     totalRows: previewRows.length,
     validRows,
     invalidRows: previewRows.length - validRows,
     skippedRows,
+    relationships,
   };
 }
 

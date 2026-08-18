@@ -72,16 +72,36 @@ export class PeopleRepository {
       });
 
       const result = await session.executeWrite(async (transaction) => {
-        // 1. Atomically increment the sequence counter
-        const seqResult = await transaction.run(`
-          MERGE (c:SequenceCounter {name: 'Person'})
-          ON CREATE SET c.currentValue = 1
-          ON MATCH SET c.currentValue = c.currentValue + 1
-          RETURN c.currentValue AS seq
-        `);
+        let personId = data.personId?.trim();
 
-        const seqNumber = toNumber(seqResult.records[0].get('seq'));
-        const personId = `P${String(seqNumber).padStart(6, '0')}`;
+        if (personId) {
+          // If personId was supplied (e.g. P100001), ensure SequenceCounter stays ahead
+          const matchNumber = parseInt(personId.replace(/\D/g, ''), 10);
+          if (!isNaN(matchNumber) && matchNumber > 0) {
+            await transaction.run(
+              `
+              MERGE (c:SequenceCounter {name: 'Person'})
+              ON CREATE SET c.currentValue = $matchNumber
+              ON MATCH SET c.currentValue = CASE 
+                WHEN c.currentValue < $matchNumber THEN $matchNumber 
+                ELSE c.currentValue 
+              END
+              `,
+              { matchNumber: neo4j.int(matchNumber) },
+            );
+          }
+        } else {
+          // Atomically increment the sequence counter for generated ID
+          const seqResult = await transaction.run(`
+            MERGE (c:SequenceCounter {name: 'Person'})
+            ON CREATE SET c.currentValue = 1
+            ON MATCH SET c.currentValue = c.currentValue + 1
+            RETURN c.currentValue AS seq
+          `);
+
+          const seqNumber = toNumber(seqResult.records[0].get('seq'));
+          personId = `P${String(seqNumber).padStart(6, '0')}`;
+        }
 
         const person: Person = {
           id: personUuid,

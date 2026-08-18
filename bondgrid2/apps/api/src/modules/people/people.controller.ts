@@ -49,7 +49,15 @@ export class PeopleController {
         return;
       }
 
-      const isUpdate = Boolean(body.personId);
+      const personId = body.personId?.trim();
+      const existing = personId
+        ? await this.peopleService.getPersonByPersonId(
+            req.user.organizationId,
+            personId,
+          )
+        : null;
+
+      const isUpdate = Boolean(existing);
 
       const person = await this.peopleService.createPerson(
         req.user.organizationId,
@@ -74,7 +82,7 @@ export class PeopleController {
         entityName: person.fullName,
         summary: isUpdate
           ? `Updated person ${person.fullName} (${person.personId}).`
-          : `Created person ${person.fullName}.`,
+          : `Created person ${person.fullName} (${person.personId}).`,
       });
 
       res.status(isUpdate ? 200 : 201).json({
@@ -82,14 +90,6 @@ export class PeopleController {
         data: person,
       });
     } catch (error) {
-      if (error instanceof Error && error.message.includes('does not exist')) {
-        res.status(404).json({
-          success: false,
-          error: error.message,
-        });
-        return;
-      }
-
       next(error);
     }
   };
