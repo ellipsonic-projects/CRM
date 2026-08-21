@@ -301,11 +301,13 @@ export default function GraphCanvas({
   onRetry,
 }: GraphCanvasProps) {
   const relationships = relationshipsProp ?? EMPTY_RELATIONSHIPS;
+  const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<DragState | undefined>(undefined);
   const suppressClickRef = useRef(false);
   const autoFitSignatureRef = useRef<string | undefined>(undefined);
   const previousCanvasSizeRef = useRef<CanvasSize>({ width: 0, height: 0 });
+  const hasUserPannedRef = useRef(false);
   const relationshipsKey = useMemo(
     () =>
       relationships
@@ -356,8 +358,9 @@ export default function GraphCanvas({
   }, [draggingNodeId, hoveredNodeId, nodes, selectedPersonId]);
 
   const fitGraph = useCallback(() => {
+    hasUserPannedRef.current = false;
     setView(getFitView(nodes, canvasSize));
-  }, [canvasSize.height, canvasSize.width, nodes]);
+  }, [canvasSize, nodes]);
 
   useEffect(() => {
     setNodes((current) => {
@@ -371,10 +374,13 @@ export default function GraphCanvas({
           ? { ...existing, person }
           : createSeededNode(person, index, people.length);
       });
-      const addedNodes = people.some((person) => !currentById.has(person.id));
+      const nodesChanged =
+        current.length !== people.length ||
+        people.some((person) => !currentById.has(person.id));
 
-      if (current.length === 0 || addedNodes) {
+      if (current.length === 0 || nodesChanged) {
         autoFitSignatureRef.current = undefined;
+        hasUserPannedRef.current = false;
         return runLayout(nextNodes, relationships);
       }
 
@@ -387,6 +393,7 @@ export default function GraphCanvas({
       current.length > 0 ? runLayout(current, relationships) : current,
     );
     autoFitSignatureRef.current = undefined;
+    hasUserPannedRef.current = false;
   }, [relationshipsKey, relationships]);
 
   useEffect(() => {
@@ -412,20 +419,26 @@ export default function GraphCanvas({
   latestViewRef.current = view;
 
   useEffect(() => {
-    const svg = svgRef.current;
+    const container = containerRef.current;
 
-    if (!svg) {
+    if (!container) {
       return;
     }
 
     const updateSize = () => {
-      const rect = svg.getBoundingClientRect();
+      const rect = container.getBoundingClientRect();
       const nextSize = { width: rect.width, height: rect.height };
-      const previousSize = previousCanvasSizeRef.current;
+      if (nextSize.width === 0 || nextSize.height === 0) {
+        return;
+      }
+
       previousCanvasSizeRef.current = nextSize;
 
       setCanvasSize((current) => {
-        if (current.width === nextSize.width && current.height === nextSize.height) {
+        if (
+          current.width === nextSize.width &&
+          current.height === nextSize.height
+        ) {
           return current;
         }
         return nextSize;
@@ -435,10 +448,9 @@ export default function GraphCanvas({
       const currentView = latestViewRef.current;
 
       if (
-        previousSize.width > 0 &&
-        previousSize.height > 0 &&
         currentNodes.length > 0 &&
-        isGraphClipped(currentNodes, currentView, nextSize)
+        (!hasUserPannedRef.current ||
+          isGraphClipped(currentNodes, currentView, nextSize))
       ) {
         setView(getFitView(currentNodes, nextSize));
       }
@@ -446,7 +458,7 @@ export default function GraphCanvas({
 
     updateSize();
     const observer = new ResizeObserver(updateSize);
-    observer.observe(svg);
+    observer.observe(container);
 
     return () => observer.disconnect();
   }, []);
@@ -467,7 +479,9 @@ export default function GraphCanvas({
 
   const toGraphPoint = useCallback(
     (clientX: number, clientY: number): GraphPoint => {
-      const rect = svgRef.current?.getBoundingClientRect();
+      const rect =
+        svgRef.current?.getBoundingClientRect() ??
+        containerRef.current?.getBoundingClientRect();
 
       if (!rect) {
         return { x: 0, y: 0 };
@@ -485,14 +499,22 @@ export default function GraphCanvas({
   );
 
   const capturePointer = (pointerId: number) => {
-    if (!svgRef.current?.hasPointerCapture(pointerId)) {
-      svgRef.current?.setPointerCapture(pointerId);
+    try {
+      if (svgRef.current && !svgRef.current.hasPointerCapture(pointerId)) {
+        svgRef.current.setPointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore if pointer capture is not supported or fails
     }
   };
 
   const releasePointer = (pointerId: number) => {
-    if (svgRef.current?.hasPointerCapture(pointerId)) {
-      svgRef.current.releasePointerCapture(pointerId);
+    try {
+      if (svgRef.current && svgRef.current.hasPointerCapture(pointerId)) {
+        svgRef.current.releasePointerCapture(pointerId);
+      }
+    } catch {
+      // Ignore if pointer capture is not supported or fails
     }
   };
 
@@ -504,6 +526,7 @@ export default function GraphCanvas({
     }
 
     if (drag.type === 'pan') {
+      hasUserPannedRef.current = true;
       setView({
         ...drag.view,
         x: drag.view.x + event.clientX - drag.x,
@@ -517,6 +540,7 @@ export default function GraphCanvas({
       const nextX = nextPoint.x + drag.offset.x;
       const nextY = nextPoint.y + drag.offset.y;
 
+      hasUserPannedRef.current = true;
       dragRef.current = { ...drag, moved: true };
       suppressClickRef.current = true;
       setNodes((current) =>
@@ -576,12 +600,15 @@ export default function GraphCanvas({
 
   const handleWheel = (event: WheelEvent<SVGSVGElement>) => {
     event.preventDefault();
-    const rect = svgRef.current?.getBoundingClientRect();
+    const rect =
+      svgRef.current?.getBoundingClientRect() ??
+      containerRef.current?.getBoundingClientRect();
 
     if (!rect) {
       return;
     }
 
+    hasUserPannedRef.current = true;
     const cursorX = event.clientX - rect.left;
     const cursorY = event.clientY - rect.top;
     const graphX = (cursorX - canvasSize.width / 2 - view.x) / view.scale;
@@ -698,7 +725,7 @@ export default function GraphCanvas({
           </button>
           <button
             className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 cursor-pointer"
-            onClick={() => setView({ x: 0, y: 0, scale: 1 })}
+            onClick={fitGraph}
             title="Reset view"
           >
             <RotateCcw size={18} />
@@ -706,7 +733,7 @@ export default function GraphCanvas({
         </div>
       </div>
 
-      <div className="flex-1 relative w-full h-full min-h-0 overflow-hidden">
+      <div ref={containerRef} className="flex-1 relative w-full h-full min-h-0 overflow-hidden">
         {loading ? (
           <div className="flex flex-1 h-full items-center justify-center">
             <p className="text-slate-400">Loading people...</p>

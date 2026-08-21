@@ -43,12 +43,6 @@ type FilterKey =
 
 type GroupKey = 'people' | 'location' | 'relationships' | 'account';
 
-const genderOptions: FilterOption[] = [
-  { value: 'male', label: 'Male', count: 0 },
-  { value: 'female', label: 'Female', count: 0 },
-  { value: 'other', label: 'Other', count: 0 },
-];
-
 const groupTitles: Record<GroupKey, string> = {
   people: 'People',
   location: 'Location',
@@ -198,7 +192,7 @@ export default function GraphFiltersPanel({
           <MultiSelectFilter
             title="Gender"
             searchPlaceholder="Search gender..."
-            options={genderOptions}
+            options={options.genders}
             selected={filters.genders}
             onChange={(genders) => updateValues('genders', genders as Gender[])}
             searchable={false}
@@ -328,9 +322,7 @@ function useFilterChips(
 ): FilterChip[] {
   return useMemo(() => {
     const labelMaps: Record<FilterKey, Map<string, string>> = {
-      genders: new Map(
-        genderOptions.map((option) => [option.value, option.label]),
-      ),
+      genders: toLabelMap(options.genders),
       occupations: toLabelMap(options.occupations),
       states: toLabelMap(options.states),
       cities: toLabelMap(options.cities),
