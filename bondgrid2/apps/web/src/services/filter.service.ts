@@ -22,6 +22,7 @@ export interface FilterOption {
 }
 
 export interface GraphFilterOptions {
+  genders: FilterOption[];
   occupations: FilterOption[];
   states: FilterOption[];
   cities: FilterOption[];
@@ -57,6 +58,24 @@ const searchablePersonFields: Array<keyof Person> = [
   'city',
   'area',
 ];
+
+export function normalizeGender(gender?: string | null): string {
+  return (gender ?? '').toString().trim().toLowerCase();
+}
+
+function matchesGender(
+  personGender: string | undefined,
+  selectedGenders: string[],
+): boolean {
+  if (selectedGenders.length === 0) {
+    return true;
+  }
+
+  const normalized = normalizeGender(personGender);
+  return selectedGenders.some(
+    (gender) => normalizeGender(gender) === normalized,
+  );
+}
 
 function normalize(value?: string): string {
   return value?.trim().toLowerCase() ?? '';
@@ -149,6 +168,12 @@ export function buildGraphFilterOptions(
   relationshipTypes: RelationshipTypeOption[],
   filters: GraphFilterState,
 ): GraphFilterOptions {
+  const peopleForGenders = filterGraphData(
+    people,
+    relationships,
+    relationshipTypes,
+    { ...filters, genders: [] },
+  ).people;
   const peopleForOccupations = filterGraphData(
     people,
     relationships,
@@ -244,6 +269,23 @@ export function buildGraphFilterOptions(
       ).length,
     }))
     .sort((first, second) => first.label.localeCompare(second.label));
+
+  const maleCount = peopleForGenders.filter(
+    (person) => normalizeGender(person.gender) === 'male',
+  ).length;
+  const femaleCount = peopleForGenders.filter(
+    (person) => normalizeGender(person.gender) === 'female',
+  ).length;
+  const otherCount = peopleForGenders.filter(
+    (person) => normalizeGender(person.gender) === 'other',
+  ).length;
+
+  const genderOptions: FilterOption[] = [
+    { value: 'male', label: 'Male', count: maleCount },
+    { value: 'female', label: 'Female', count: femaleCount },
+    { value: 'other', label: 'Other', count: otherCount },
+  ];
+
   const loginOptions: FilterOption[] = [
     ...(people.some((person) => person.hasLogin)
       ? [
@@ -266,6 +308,7 @@ export function buildGraphFilterOptions(
   ];
 
   return {
+    genders: genderOptions,
     occupations: uniqueOptions(
       peopleForOccupations
         .map((person) => person.occupation)
@@ -291,6 +334,7 @@ export function pruneGraphFilters(
   options: GraphFilterOptions,
 ): GraphFilterState {
   const available = {
+    genders: new Set(options.genders.map((option) => option.value)),
     occupations: new Set(options.occupations.map((option) => option.value)),
     states: new Set(options.states.map((option) => option.value)),
     cities: new Set(options.cities.map((option) => option.value)),
@@ -306,6 +350,9 @@ export function pruneGraphFilters(
 
   return {
     ...filters,
+    genders: filters.genders.filter((value) =>
+      available.genders.has(normalizeGender(value)),
+    ),
     occupations: filters.occupations.filter((value) =>
       available.occupations.has(value),
     ),
@@ -354,7 +401,7 @@ export function filterGraphData(
   const filteredPeople = people.filter((person) => {
     const matchesPersonFields =
       personMatchesSearch(person, filters.search) &&
-      selectedOrAll(person.gender, filters.genders) &&
+      matchesGender(person.gender, filters.genders) &&
       selectedOrAll(person.occupation, filters.occupations) &&
       selectedOrAll(person.state, filters.states) &&
       selectedOrAll(person.city, filters.cities) &&
